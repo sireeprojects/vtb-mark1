@@ -1,7 +1,12 @@
-#include "logger.h"
-
 #include <chrono>
 #include <iostream>
+#include <filesystem>
+#include <unordered_map>
+#include <algorithm>
+#include <string>
+#include <string_view>
+
+#include "logger.h"
 
 namespace vtb {
 
@@ -10,75 +15,116 @@ Logger& Logger::get_instance() {
    return instance;
 }
 
-Logger::Logger() {}
+Logger::Logger() : max_file_size_(100 * 1024 * 1024) {
+}
 
-void Logger::init(const std::string& filename, LogLevel level) {
+void Logger::init(const std::string& filename, LogLevel level, size_t max_file_size_mb) {
    if (initialized_.exchange(true)) return;
 
    level_ = level;
-   if (!filename.empty()) {
-      file_.open(filename, std::ios::out | std::ios::app);
+   log_filename_ = filename;
+   max_file_size_ = max_file_size_mb * 1024 * 1024;
+
+   if (!log_filename_.empty()) {
+      file_.open(log_filename_, std::ios::out | std::ios::app);
+      if (file_.is_open()) {
+         current_file_size_ = std::filesystem::file_size(log_filename_);
+      }
    }
 
    running_ = true;
    flush_thread_ = std::thread(&Logger::flush_loop, this);
 }
 
-LogLevel Logger::get_level() const { return level_; }
-
-void Logger::log(LogLevel msg_level, const std::string& message) {
-   if (msg_level <= level_ || msg_level == vtb::LogLevel::ERROR) {
+void Logger::log(LogLevel msg_level, std::string&& message) {
+   // Level check here is a secondary safety; the Macro handles the primary check
+   if (msg_level <= level_) {
       std::lock_guard<std::mutex> lock(mutex_);
-      buffer_ << message << "\n";
+      active_buffer_.append(get_level_name(msg_level)).append(message).append("\n");
    }
+}
+
+void Logger::rotate_logs() {
+   if (file_.is_open()) file_.close();
+
+   // Simple rotation: app.log -> app.log.1 (can be expanded to keep N files)
+   std::string backup_name = log_filename_ + ".1";
+   std::filesystem::rename(log_filename_, backup_name);
+
+   file_.open(log_filename_, std::ios::out | std::ios::trunc);
+   current_file_size_ = 0;
 }
 
 void Logger::flush_loop() {
    while (running_) {
-      {
-         std::unique_lock<std::mutex> lock(mutex_);
-         // This waits for 100ms OR until cv_.notify_all() is called
-         cv_.wait_for(lock, std::chrono::milliseconds(100),
-                      [this] { return !running_; });
-      }
-
       std::string to_write;
       {
-         std::lock_guard<std::mutex> lock(mutex_);
-         to_write = buffer_.str();
-         // CHECK: us move instead of copy? OR swap
-         // to_write.swap(active_buffer_);
-         buffer_.str("");
-         buffer_.clear();
+         std::unique_lock<std::mutex> lock(mutex_);
+         cv_.wait_for(lock, std::chrono::milliseconds(100), [this] { return !running_ || !active_buffer_.empty(); });
+         
+         // SWAP Strategy: Move the data out of the shared buffer instantly
+         to_write.swap(active_buffer_);
       }
 
       if (!to_write.empty()) {
-         std::cout << to_write << std::flush;
          if (file_.is_open()) {
+            if (current_file_size_ + to_write.size() > max_file_size_) {
+               rotate_logs();
+            }
             file_ << to_write << std::flush;
+            current_file_size_ += to_write.size();
          }
-      }
-   }
-
-   // Final drain
-   std::string final_content;
-   {
-      std::lock_guard<std::mutex> lock(mutex_);
-      final_content = buffer_.str();
-   }
-   if (!final_content.empty()) {
-      std::cout << final_content << std::flush;
-      if (file_.is_open()) {
-         file_ << final_content << std::flush;
+         std::cout << to_write << std::flush;
       }
    }
 }
 
 Logger::~Logger() {
    running_ = false;
-   cv_.notify_all();  // Wakes the thread up INSTANTLY
-   if (flush_thread_.joinable()) {
-      flush_thread_.join();
+   cv_.notify_all();
+   if (flush_thread_.joinable()) flush_thread_.join();
+   
+   // Final drain to ensure no logs are lost on shutdown
+   if (!active_buffer_.empty()) {
+      if (file_.is_open()) file_ << active_buffer_;
+      std::cout << active_buffer_;
+   }
+}
+
+// Function to return the uppercase name of the LogLevel
+std::string_view Logger::get_level_name(LogLevel level) {
+    switch (level) {
+        case LogLevel::FATAL:   return "[..FATAL] ";
+        case LogLevel::ERROR:   return "[..ERROR] ";
+        case LogLevel::WARNING: return "[WARNING] ";
+        case LogLevel::INFO:    return "[...INFO] ";
+        case LogLevel::DEBUG:   return "[..DEBUG] ";
+        case LogLevel::TRACE:   return "[..TRACE] ";
+        default:                return "[UNKNOWN] ";
+    }
+}
+
+void set_verbosity(std::string level_str) {
+   // Convert to uppercase to handle "info", "Info", or "INFO"
+   std::transform(level_str.begin(), level_str.end(), level_str.begin(), ::toupper);
+
+   // Define the mapping
+   static const std::unordered_map<std::string, LogLevel> verbosity_map = {
+      {"FATAL",   LogLevel::FATAL},
+      {"ERROR",   LogLevel::ERROR},
+      {"WARNING", LogLevel::WARNING},
+      {"INFO",    LogLevel::INFO},
+      {"DEBUG",   LogLevel::DEBUG},
+      {"TRACE",   LogLevel::TRACE}
+   };
+
+   // Search the map
+   auto it = verbosity_map.find(level_str);
+   if (it != verbosity_map.end()) {
+      vtb::Logger::get_instance().set_level(it->second);
+   } else {
+      // Fallback for invalid input
+      std::cerr << "[WARNING] Invalid log level '" << level_str << "'. Defaulting to INFO.\n";
    }
 }
 

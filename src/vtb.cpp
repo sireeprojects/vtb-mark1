@@ -1,15 +1,15 @@
-#include "cmdline_parser.h"
-#include "common.h"
-#include "config_manager.h"
-#include "logger.h"
-#include "messenger.h"
-#include <rte_launch.h> // rte_eal_mp_wait_lcore
-#include <rte_pause.h> // rte_pause
-                       //
 #include <csignal>
 
-bool stop_blocking_{false};
+#include "common.h"
+#include "logger.h"
+#include "messenger.h"
+#include "cmdline_parser.h"
+#include "config_manager.h"
+#include "vhost_controller.h"
+#include <rte_launch.h> // rte_eal_mp_wait_lcore
+#include <rte_pause.h>  // rte_pause
 
+bool stop_blocking_{false};
 static int keep_alive(void*) {
    while (!stop_blocking_) {
       rte_pause();
@@ -18,48 +18,43 @@ static int keep_alive(void*) {
 }
 
 static void signal_handler(int) {
-   vtb::info() << "<User Pressed Ctrl+C>";
+   VTB_LOG(FATAL) << "<User Pressed Ctrl+C>";
    stop_blocking_ = true;
-}
-
-// CHECK
-void my_graceful_exit() {
-    // Note: We don't have access to the 'runtime_error' object here easily
-    vtb::error() << "A fatal error occurred. Shutting down gracefully...";
-    std::exit(1);
 }
 
 int main(int argc, char** argv) {
    vtb::disable_echoctl();
 
-   // assign signal handler for graceful exit
+   // assign signal handlers for graceful exit
+   std::set_terminate(vtb::graceful_exit);
    std::signal(SIGINT, signal_handler);
    std::signal(SIGTERM, signal_handler);
 
-   // setup logger
-   // vtb::Logger::get_instance().init("run.log", vtb::LogLevel::DEFAULT);
-   vtb::Logger::get_instance().init("run.log", vtb::LogLevel::FULL);
-
-   std::set_terminate(my_graceful_exit);
+   // setup logger with a default verbosity
+   vtb::Logger::get_instance().init("run.log", vtb::LogLevel::TRACE);
 
    // setup configuration manager
    auto& config = vtb::ConfigManager::get_instance();
    if (!config.init(argc, argv)) {
-      vtb::error() << "Config.Init failed";
+      VTB_LOG(ERROR) << "Config.Init failed";
       return -1;
    }
 
+   // set user verbosity, this overrides the default verbosity
+   auto verbosity = config.get_arg<std::string>("--verbosity");
+   vtb::set_verbosity(verbosity);
+
    // start the appropriate port controller
-   auto mode = config.get_arg<std::string>("-m");
+   // auto mode = config.get_arg<std::string>("-m");
    // std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
 
    // port_controller->start();
 
    // start vhost controller
-   // auto socket_path = config.get_arg<std::string>("-vsn");
-   // vtb::VhostController backend(socket_path.c_str());
-   // backend.init(argc, argv);
-   // backend.start();
+   auto socket_path = config.get_arg<std::string>("-vsn");
+   vtb::VhostController backend(socket_path.c_str());
+   backend.init(argc, argv);
+   backend.start();
 
    rte_eal_remote_launch(keep_alive, NULL, 2);
    rte_eal_mp_wait_lcore();
@@ -72,6 +67,13 @@ int main(int argc, char** argv) {
    // rte_eal_cleanup(); // create drouble free issue when trying to cleanup 
                          // in class desctructors 
 
-   vtb::info() << "Test Done. Starting cleanup...";
+   VTB_LOG(INFO) << "Test Done. Starting cleanup...";
    return 0;
 }
+
+//   VTB_LOG(FATAL)   << "1.this is a fatal level message";
+//   VTB_LOG(ERROR)   << "2.this is a error level message";
+//   VTB_LOG(WARNING) << "3.this is a warning level message";
+//   VTB_LOG(INFO)    << "4.this is a info level message";
+//   VTB_LOG(DEBUG)   << "5.this is a debug level message";
+//   VTB_LOG(TRACE)   << "6.this is a trace level message";

@@ -141,7 +141,8 @@ void set_thread_name(std::thread& th, const std::string& name) {
    int rc = pthread_setname_np(handle, name.c_str());
 
    if (rc != 0) {
-      std::cerr << "Error setting thread name: " << std::strerror(rc)
+      std::cerr << "Error setting thread name: " 
+                << std::strerror(rc)
                 << std::endl;
    }
 }
@@ -158,10 +159,21 @@ void disable_echoctl() {
    tcsetattr(STDIN_FILENO, TCSANOW, &new_t);
 }
 
-void restore_echoctl() { tcsetattr(STDIN_FILENO, TCSANOW, &old_t); }
+void restore_echoctl() {
+   tcsetattr(STDIN_FILENO, TCSANOW, &old_t);
+}
 
-bool is_even(int n) { return (n % 2 == 0); }
+void graceful_exit() {
+    VTB_LOG(FATAL) << "A fatal error occurred. Shutting down gracefully...";
+    std::exit(1);
+}
 
-bool is_odd(int n) { return (n % 2 != 0); }
+bool is_even(int n) {
+   return (n % 2 == 0);
+}
+
+bool is_odd(int n) {
+   return (n % 2 != 0);
+}
 
 }  // namespace vtb

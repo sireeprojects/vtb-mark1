@@ -5,32 +5,56 @@
 
 namespace vtb {
 
+ConfigManager::ConfigManager() {
+   parser_.add_argument("--help",
+                        "-h", 
+                        "Show this help menu", 
+                        false, 
+                        "false");
+   parser_.add_argument("--mode", 
+                        "-m", 
+                        "Loopback | Back2Back | Emulator", 
+                        false, 
+                        "Loopback");
+   parser_.add_argument("--mode-threads",
+                        "-mth", 
+                        "1 | 2", 
+                        false, 
+                        "1");
+   parser_.add_argument("--abstract_sockname", 
+                        "-absn", 
+                        "Specify a random name. For internal use only", 
+                        false, 
+                        "cm_to_ph_sock");
+   parser_.add_argument("--port_data_sockname",
+                        "-pdsn", 
+                        "Unix socket path to connect to port data plane", 
+                        false, 
+                        "/tmp/port_data.sock");
+   parser_.add_argument("--port_control_sockname", 
+                        "-pcsn", 
+                        "Unix socket path to connect to port control plane", 
+                        false, 
+                        "/tmp/port_ctrl.sock");
+   parser_.add_argument("--vhost_sockname", 
+                        "-vsn", 
+                        "Unix socket path to connect to virtual machine", 
+                        false, 
+                        "/tmp/vhost.sock");
+   parser_.add_argument("--verbosity", 
+                        "-v", 
+                        "Fatal | Error | Warning | Info | Debug | Trace", 
+                        false, 
+                        "Info");
+}
+
 ConfigManager& ConfigManager::get_instance() {
    static ConfigManager instance;
    return instance;
 }
 
-ConfigManager::ConfigManager() {
-   parser_.add_argument("--help", "-h", "Show this help menu", false, "false");
-   parser_.add_argument("--mode", "-m", "Loopback | Back2Back | Emulator",
-                        false, "Loopback");
-   parser_.add_argument("--mode-threads", "-mth", "1 | 2",
-                        false, "1");
-   parser_.add_argument("--abstract_sockname", "-absn",
-                        "Specify a random name. For internal use only", false,
-                        "cm_to_ph_sock");
-   parser_.add_argument("--port_data_sockname", "-pdsn",
-                        "Unix socket path to connect to port data plane", false,
-                        "/tmp/port_data.sock");
-   parser_.add_argument("--port_control_sockname", "-pcsn",
-                        "Unix socket path to connect to port control plane",
-                        false, "/tmp/port_ctrl.sock");
-   parser_.add_argument("--vhost_sockname", "-vsn",
-                        "Unix socket path to connect to virtual machine", false,
-                        "/tmp/vhost.sock");
+ConfigManager::~ConfigManager() {
 }
-
-ConfigManager::~ConfigManager() {}
 
 bool ConfigManager::init(int argc, char** argv) {
    try {
@@ -41,37 +65,9 @@ bool ConfigManager::init(int argc, char** argv) {
       }
       return true;
    } catch (const std::exception& e) {
-      error() << "Init Error: " << e.what();
+      VTB_LOG(ERROR) << "Init Error: " << e.what();
       parser_.print_usage();
       return false;
-   }
-}
-
-void ConfigManager::dump_config() {
-   std::lock_guard<std::mutex> lock(db_mutex_);
-
-   info() << "--- [Config DB Dump] ---";
-
-   for (const auto& [key, val] : database_) {
-      std::string v = "[Object]";
-
-      if (val.type() == typeid(int))
-         v = std::to_string(std::any_cast<int>(val));
-
-      else if (val.type() == typeid(bool))
-         v = std::any_cast<bool>(val) ? "true" : "false";
-
-      else if (val.type() == typeid(std::string))
-         v = std::any_cast<std::string>(val);
-
-      else if (val.type() == typeid(uint64_t)) {
-         std::stringstream ss;
-         ss << "0x" << std::hex << std::any_cast<uint64_t>(val);
-         v = ss.str();
-      }
-
-      info() << "Key: " << std::left << std::setw(20) << key
-             << " | Value: " << v;
    }
 }
 
@@ -154,7 +150,7 @@ void ConfigManager::print_portmap() {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
    // Table Header
-   info() << std::left << std::setw(8) << "Port#" 
+   VTB_LOG(INFO) << std::left << std::setw(8) << "Port#" 
                        << std::setw(6) << "Vid"
                        << std::setw(8) << "No Qs" 
                        << std::setw(8) << "QpID" 
@@ -168,7 +164,7 @@ void ConfigManager::print_portmap() {
                        << std::setw(8) << "TxqFd" 
                        << "CtrlFd";
 
-   info() << std::string(110, '-');
+    VTB_LOG(INFO)<< std::string(110, '-');
 
    for (const auto& [port_id, map] : pmap_) {
       const auto& vd = map.vd;
@@ -212,9 +208,9 @@ void ConfigManager::print_portmap() {
                << " ";  // CtrlFd
          }
 
-         info() << ss.str();
+         VTB_LOG(INFO) << ss.str();
       }
-      info() << std::string(110, '-');
+      VTB_LOG(INFO) << std::string(110, '-');
    }
 }
 
@@ -265,9 +261,9 @@ void ConfigManager::clear_device(int vid) {
    size_t deleted_count = pmap_.erase(vid);
 
    if (deleted_count == 0) {
-      vtb::error() << "Device Id: " << vid << " was not found in PortMap";
+      VTB_LOG(ERROR) << "Device Id: " << vid << " was not found in PortMap";
    } else {
-      vtb::details() << "Device Id: " << vid << " is remove from PortMap";
+      VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from PortMap";
    }
 }
 

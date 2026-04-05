@@ -1,7 +1,6 @@
 #pragma once
 
 #include <unistd.h>
-
 #include <cstdint>
 #include <memory>
 #include <string_view>
@@ -66,12 +65,10 @@ class PortController;
 
 int create_server_socket(const std::string& path);
 int create_client_socket(const std::string& path);
-
 void set_thread_name(std::thread& th, const std::string& name);
-
 void restore_echoctl();
 void disable_echoctl();
-
+void graceful_exit();
 bool is_even(int n);
 bool is_odd(int n);
 
@@ -84,7 +81,7 @@ bool send_packet(int fd, const T& data) {
       return false;
    } else if (static_cast<size_t>(bytes_sent) < sizeof(T)) {
       // Handle partial writes if necessary for large buffers
-      vtb::info() << "Warning: Partial write occurred";
+      VTB_LOG(INFO) << "Warning: Partial write occurred";
       return false;
    }
    return true;

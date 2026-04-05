@@ -39,7 +39,7 @@ VhostController::VhostController(std::string socket_path)
 }
 
 VhostController::~VhostController() {
-   vtb::info() << "Cleanup: Vhost Controller";
+   VTB_LOG(INFO) << "Cleanup: Vhost Controller";
 
    if (driver_registered_) {
       rte_vhost_driver_unregister(socket_path_.c_str());
@@ -93,8 +93,8 @@ void VhostController::start() {
    if (rte_vhost_driver_start(path) != 0) {
       throw std::runtime_error("Vhost Controller: Driver start failed");
    }
-   vtb::info() << "Vhost Controller: Ready @" << path;
-   vtb::info() << "Vhost Controller: waiting for guest...";
+   VTB_LOG(INFO) << "Vhost Controller: Ready @" << path;
+   VTB_LOG(INFO) << "Vhost Controller: waiting for guest...";
 }
 
 // run() — launches main on a lcore TODO
@@ -125,10 +125,10 @@ int VhostController::cb_vring_state_changed(int vid, uint16_t queue_id,
 // Device lifecycle hooks
 //------------------------------------------------------------------
 void VhostController::on_new_device(int vid) {
-   vtb::info() << "Vhost Controller: New device added with VID: " << vid;
+   VTB_LOG(INFO) << "Vhost Controller: New device added with VID: " << vid;
 
    int vring_count = rte_vhost_get_vring_num(vid);
-   vtb::details() << "Vhost Controller: Total Number of queues for " << vid
+   VTB_LOG(DEBUG) << "Vhost Controller: Total Number of queues for " << vid
                   << " is " << vring_count << " for with portnum "
                   << VhostController::port_cntr_;
 
@@ -143,14 +143,14 @@ void VhostController::on_new_device(int vid) {
 }
 
 void VhostController::on_destroy_device(int vid) {
-   vtb::info() << "Vhost Controller: Device with VID: " << vid << " removed";
+   VTB_LOG(INFO) << "Vhost Controller: Device with VID: " << vid << " removed";
    notify_port_controller(1, vid, 0, 0);
    vtb::ConfigManager::get_instance().clear_device(vid);
 }
 
 void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
                                              int enable) {
-   vtb::details() << "Vhost Controller: vring state changed vid=" << vid
+   VTB_LOG(DEBUG) << "Vhost Controller: vring state changed vid=" << vid
                   << " queue_id=" << queue_id << " enable=" << enable;
 
    vtb::ConfigManager::get_instance().set_queue_state(vid, queue_id, enable);
@@ -163,11 +163,11 @@ void VhostController::create_client() {
    abstract_sockname_ =
        vtb::ConfigManager::get_instance().get_arg<std::string>("-absn");
    std::string sock_path = std::string(1, '\0') + abstract_sockname_;
-   vtb::details() << "Vhost Controler: Abstract Socket Name: "
+   VTB_LOG(DEBUG) << "Vhost Controler: Abstract Socket Name: "
                   << abstract_sockname_;
 
    if (sock_path.size() > 0 && sock_path[0] == '\0') {
-      vtb::details() << "Verified: First byte is NULL.";
+      VTB_LOG(DEBUG) << "Verified: First byte is NULL.";
    }
    abstract_fd_ = vtb::create_client_socket(sock_path);
 }

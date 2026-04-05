@@ -19,7 +19,7 @@ TARGET   := $(BIN_DIR)/vtb
 ALL_SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 
 # 2. List the files you want to EXCLUDE here (relative to the src directory)
-EXCLUDE_SRCS := $(SRC_DIR)/file_to_skip.cpp
+#EXCLUDE_SRCS := $(SRC_DIR)/vhost_controller.cpp
 
 # 3. Filter them out
 SRCS     := $(filter-out $(EXCLUDE_SRCS), $(ALL_SRCS))
@@ -48,7 +48,7 @@ all: $(TARGET)
 # Link the executable
 $(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
-	@printf "$(RED)Linking:$(RESET)   $(notdir $@)\n"
+	@printf "$(RED)Linking:   $(notdir $@)$(RESET)\n"
 	$(Q)$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
 	@printf "$(GREEN)Build Finished Successfully!$(RESET)\n"
 
@@ -69,6 +69,7 @@ run:
 	      --log-level=lib.eal:3 \
 	      -- --help \
 	      --mode Loopback \
+			--verbosity Trace \
 	      --mode-threads 1 \
 	      --abstract_sockname absockname \
 	      --port_data_sockname datasockname \
@@ -79,3 +80,12 @@ run:
 
 	#@printf "$(BLUE)Cleaning:$(RESET)   build artifacts\n"
 	#$(Q)rm -rf $(OBJ_DIR) $(TARGET) *.log
+
+		#--no-huge \
+
+		#--log-level=lib.vhost.config:3 \
+		#--log-level=lib.eal:3 \
+
+		#--mode Emulator \
+		#--mode Back2Back \
+		#--mode Loopback \
