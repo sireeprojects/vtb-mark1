@@ -1,12 +1,12 @@
-#include <csignal>
-
 #include "cmdline_parser.h"
 #include "common.h"
 #include "config_manager.h"
 #include "logger.h"
 #include "messenger.h"
-// #include "port_controller_loopback.h"
-#include "vhost_controller.h"
+#include <rte_launch.h> // rte_eal_mp_wait_lcore
+#include <rte_pause.h> // rte_pause
+                       //
+#include <csignal>
 
 bool stop_blocking_{false};
 
@@ -56,11 +56,10 @@ int main(int argc, char** argv) {
    // port_controller->start();
 
    // start vhost controller
-   auto socket_path = config.get_arg<std::string>("-vsn");
-   vtb::VhostController backend(socket_path.c_str());
-
-   backend.init(argc, argv);
-   backend.start();
+   // auto socket_path = config.get_arg<std::string>("-vsn");
+   // vtb::VhostController backend(socket_path.c_str());
+   // backend.init(argc, argv);
+   // backend.start();
 
    rte_eal_remote_launch(keep_alive, NULL, 2);
    rte_eal_mp_wait_lcore();
@@ -76,23 +75,3 @@ int main(int argc, char** argv) {
    vtb::info() << "Test Done. Starting cleanup...";
    return 0;
 }
-
-// vhost and eal messages to just errors
-// rte_log_set_level_pattern("lib.vhost.config", RTE_LOG_ERR);
-// rte_log_set_level_pattern("lib.eal", RTE_LOG_ERR);
-
-// config.dump_config();
-// check vhost devices and queues for ports
-// config.print_portmap();
-
-// auto absn = config.get_arg<std::string>("-absn");
-// vtb::info() << "Abstract Socket Name: " << absn;
-
-// auto pdsn = config.get_arg<std::string>("-pdsn");
-// vtb::info() << "Port Data Socket Name: " << pdsn;
-
-// auto pcsn = config.get_arg<std::string>("-pcsn");
-// vtb::info() << "Port Control Socket Name: " << pcsn;
-
-// auto vsn  = config.get_arg<std::string>("-vsn");
-// vtb::info() << "Vhost Socket Name: " << vsn;

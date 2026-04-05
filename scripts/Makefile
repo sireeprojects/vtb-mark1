@@ -1,67 +1,81 @@
-PROJ_ROOT = ..
+PROJ_ROOT := ..
 
-# Compiler and Flags
+# --- Compiler and Flags ---
 CXX      := g++
-CXXFLAGS := -I$(PROJ_ROOT)/src -Wall -Wextra -std=c++17 `pkg-config --cflags libdpdk`
-LDFLAGS  :=  `pkg-config --libs libdpdk` -pthread
+# Using $(shell ...) is the most robust way to handle pkg-config in Make
+CXXFLAGS := -I$(PROJ_ROOT)/src -Wall -Wextra -std=c++17 $(shell pkg-config --cflags libdpdk)
+LDFLAGS  := $(shell pkg-config --libs libdpdk) -pthread
 
-
-# Directories
+# --- Directories ---
 SRC_DIR  := $(PROJ_ROOT)/src
 OBJ_DIR  := obj
 BIN_DIR  := .
 
-# Target executable name
+# --- Target ---
 TARGET   := $(BIN_DIR)/vtb
 
-# Find all .cpp files in src/ and the main vtb.cpp in root
-SRCS     := $(wildcard $(SRC_DIR)/*.cpp)
-# Convert .cpp file paths to .o file paths in the obj/ directory
-OBJS     := $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(notdir $(SRCS)))
+# --- File Selection & Exclusions ---
+# 1. Grab all files in src
+ALL_SRCS := $(wildcard $(SRC_DIR)/*.cpp)
 
-# Default rule
+# 2. List the files you want to EXCLUDE here (relative to the src directory)
+EXCLUDE_SRCS := $(SRC_DIR)/file_to_skip.cpp
+
+# 3. Filter them out
+SRCS     := $(filter-out $(EXCLUDE_SRCS), $(ALL_SRCS))
+
+# 4. Generate Object list (maps src/*.cpp to obj/*.o)
+OBJS     := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+
+# --- Formatting & Verbosity ---
+# Use 'make V=1' to see the full raw compiler commands
+ifndef V
+    Q := @
+else
+    Q := 
+endif
+
+# Colors (0;32 is a deeper, solid green; 0;34 is a clean blue)
+BLUE  := \033[0;34m
+GREEN := \033[0;32m
+RESET := \033[0m
+RED   := \033[0;31m
+
+# --- Rules ---
+
 all: $(TARGET)
 
 # Link the executable
 $(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
+	@printf "$(RED)Linking:$(RESET)   $(notdir $@)\n"
+	$(Q)$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
+	@printf "$(GREEN)Build Finished Successfully!$(RESET)\n"
 
-# Compile source files from src/ into obj/
+# Compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Compile the main vtb.cpp (located in the parent root) into obj/
-$(OBJ_DIR)/vtb.o: $(SRC_DIR)/vtb.cpp
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@printf "$(BLUE)Compiling:$(RESET) $(notdir $<)\n"
+	$(Q)$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean up
 clean:
 	rm -rf $(OBJ_DIR) $(TARGET) *.log
 
+# Run command for DPDK environment
 run:
 	@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
-		--log-level=lib.vhost.config:3 \
-		--log-level=lib.eal:3 \
-		-- --help \
-		--mode Loopback \
-		--mode-threads 1 \
-		--abstract_sockname absockname \
-		--port_data_sockname datasockname \
-		--port_control_sockname controlsockname \
-		--vhost_sockname /tmp/vhost-user.sock
-	
-.PHONY: all clean
+	      --log-level=lib.vhost.config:3 \
+	      --log-level=lib.eal:3 \
+	      -- --help \
+	      --mode Loopback \
+	      --mode-threads 1 \
+	      --abstract_sockname absockname \
+	      --port_data_sockname datasockname \
+	      --port_control_sockname controlsockname \
+	      --vhost_sockname /tmp/vhost-user.sock
 
+.PHONY: all clean run
 
-		#--no-huge \
-
-		#--log-level=lib.vhost.config:3 \
-		#--log-level=lib.eal:3 \
-
-
-		#--mode Emulator \
-		#--mode Back2Back \
-		#--mode Loopback \
+	#@printf "$(BLUE)Cleaning:$(RESET)   build artifacts\n"
+	#$(Q)rm -rf $(OBJ_DIR) $(TARGET) *.log
