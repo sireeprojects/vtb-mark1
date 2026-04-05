@@ -21,20 +21,23 @@ std::atomic<VhostController*> VhostController::instance_{nullptr};
 
 int VhostController::port_cntr_ = 0;
 
+// File scope only, not accessible outside this file
+static vtb::ConfigManager& config = vtb::ConfigManager::get_instance();
+
 // Ctor
-VhostController::VhostController(std::string socket_path)
-    : socket_path_{std::move(socket_path)} {
+VhostController::VhostController(std::string socket_path) : socket_path_{std::move(socket_path)} {
    VhostController* expected = nullptr;
 
-   if (!instance_.compare_exchange_strong(expected, this,
-                                          std::memory_order_acq_rel)) {
+   if (!instance_.compare_exchange_strong(expected, this, std::memory_order_acq_rel)) {
       throw std::runtime_error(
           "Vhost Controller: Only one Vhost Controller instance allowed");
    }
 
-   mode_ = vtb::ConfigManager::get_instance().get_arg<std::string>("-m");
+   mode_ = config.get_arg<std::string>("-m");
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
+      VTB_LOG(DEBUG) << "Tring to connect to Abstract socket server...";
       create_client();
+      VTB_LOG(DEBUG) << "Connected to Abstract socket server...";
    }
 }
 
@@ -45,12 +48,10 @@ VhostController::~VhostController() {
       rte_vhost_driver_unregister(socket_path_.c_str());
       driver_registered_ = false;
    }
-
    if (eal_initialised_) {
       rte_eal_cleanup();
       eal_initialised_ = false;
    }
-
    instance_.store(nullptr, std::memory_order_release);
 }
 
@@ -58,7 +59,8 @@ VhostController::~VhostController() {
 void VhostController::init(int argc, char* argv[]) {
    int ret = rte_eal_init(argc, argv);
 
-   if (ret < 0) throw std::runtime_error("Vhost Controller: EAL init failed");
+   if (ret < 0) 
+      throw std::runtime_error("Vhost Controller: EAL init failed");
 
    eal_initialised_ = true;
 }
@@ -97,11 +99,6 @@ void VhostController::start() {
    VTB_LOG(INFO) << "Vhost Controller: waiting for guest...";
 }
 
-// run() — launches main on a lcore TODO
-void VhostController::run() {
-   // launch main to the first lcore
-}
-
 //------------------------------------------------------------------
 // Static C callbacks -> instance dispatch
 //------------------------------------------------------------------
@@ -132,10 +129,9 @@ void VhostController::on_new_device(int vid) {
                   << " is " << vring_count << " for with portnum "
                   << VhostController::port_cntr_;
 
-   vtb::ConfigManager::get_instance().init_vhost_device(
-         VhostController::port_cntr_, vid, (vring_count / 2));
-   vtb::ConfigManager::get_instance().set_queue_state(vid, 0, 1);
-   vtb::ConfigManager::get_instance().set_queue_state(vid, 1, 1);
+   config.init_vhost_device( VhostController::port_cntr_, vid, (vring_count / 2));
+   config.set_queue_state(vid, 0, 1);
+   config.set_queue_state(vid, 1, 1);
 
    notify_port_controller(0, vid, 0, 1);
    notify_port_controller(0, vid, 1, 1);
@@ -145,7 +141,7 @@ void VhostController::on_new_device(int vid) {
 void VhostController::on_destroy_device(int vid) {
    VTB_LOG(INFO) << "Vhost Controller: Device with VID: " << vid << " removed";
    notify_port_controller(1, vid, 0, 0);
-   vtb::ConfigManager::get_instance().clear_device(vid);
+   config.clear_device(vid);
 }
 
 void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
@@ -153,21 +149,20 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
    VTB_LOG(DEBUG) << "Vhost Controller: vring state changed vid=" << vid
                   << " queue_id=" << queue_id << " enable=" << enable;
 
-   vtb::ConfigManager::get_instance().set_queue_state(vid, queue_id, enable);
+   config.set_queue_state(vid, queue_id, enable);
 
    if (queue_id >= 2) // 0 & 1 will be taken care by the notify in new device
       notify_port_controller(0, vid, queue_id, enable);
 }
 
 void VhostController::create_client() {
-   abstract_sockname_ =
-       vtb::ConfigManager::get_instance().get_arg<std::string>("-absn");
+   abstract_sockname_ = config.get_arg<std::string>("-absn");
    std::string sock_path = std::string(1, '\0') + abstract_sockname_;
    VTB_LOG(DEBUG) << "Vhost Controler: Abstract Socket Name: "
                   << abstract_sockname_;
 
    if (sock_path.size() > 0 && sock_path[0] == '\0') {
-      VTB_LOG(DEBUG) << "Verified: First byte is NULL.";
+      VTB_LOG(TRACE) << "Verified: Abstract socket has first byte is NULL.";
    }
    abstract_fd_ = vtb::create_client_socket(sock_path);
 }
@@ -177,7 +172,7 @@ bool VhostController::notify_port_controller(int meta, int vid, uint16_t queue_i
    std::lock_guard<std::mutex> lock(notify_mutex_);
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
       PortDeviceRingState pdrs = {meta, port_cntr_, vid, queue_id, enable};
-      vtb::send_packet(abstract_fd_, pdrs);
+      // vtb::send_packet(abstract_fd_, pdrs);
    }
    return false;
 }

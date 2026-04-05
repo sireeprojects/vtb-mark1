@@ -34,7 +34,6 @@ public:
 
    // Register vhost-user socket, set features, begin listening.
    void start();
-   void run();
 
 protected:
    // Device lifecycle hooks.
@@ -47,16 +46,14 @@ private:
    static int cb_new_device(int vid);
    static void cb_destroy_device(int vid);
    static int cb_vring_state_changed(int vid, uint16_t queue_id, int enable);
-
-   void create_client();
    bool notify_port_controller(int meta, int vid, uint16_t queue_id, int enable);
+   void create_client();
 
    std::string socket_path_{};
    bool eal_initialised_{false};
    bool driver_registered_{false};
    static std::atomic<VhostController*> instance_;
    static int port_cntr_;
-
    std::string abstract_sockname_{};
    int abstract_fd_{-1};
    std::string mode_{};

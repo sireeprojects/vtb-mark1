@@ -60,6 +60,7 @@ int create_client_socket(const std::string& path) {
       // Size: offset of sun_path + 1 (null) + name_length
       socklen_t len = offsetof(struct sockaddr_un, sun_path) + path_len;
 
+      // TODO: this is a blocking call, how to handle on exit?
       connect(sock_fd, (struct sockaddr*)&addr, len);
    } else {
       // Standard UNIX socket: Path on filesystem
