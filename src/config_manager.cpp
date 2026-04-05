@@ -1,0 +1,274 @@
+#include "config_manager.h"
+
+#include <iomanip>
+#include <sstream>
+
+namespace vtb {
+
+ConfigManager& ConfigManager::get_instance() {
+   static ConfigManager instance;
+   return instance;
+}
+
+ConfigManager::ConfigManager() {
+   parser_.add_argument("--help", "-h", "Show this help menu", false, "false");
+   parser_.add_argument("--mode", "-m", "Loopback | Back2Back | Emulator",
+                        false, "Loopback");
+   parser_.add_argument("--mode-threads", "-mth", "1 | 2",
+                        false, "1");
+   parser_.add_argument("--abstract_sockname", "-absn",
+                        "Specify a random name. For internal use only", false,
+                        "cm_to_ph_sock");
+   parser_.add_argument("--port_data_sockname", "-pdsn",
+                        "Unix socket path to connect to port data plane", false,
+                        "/tmp/port_data.sock");
+   parser_.add_argument("--port_control_sockname", "-pcsn",
+                        "Unix socket path to connect to port control plane",
+                        false, "/tmp/port_ctrl.sock");
+   parser_.add_argument("--vhost_sockname", "-vsn",
+                        "Unix socket path to connect to virtual machine", false,
+                        "/tmp/vhost.sock");
+}
+
+ConfigManager::~ConfigManager() {}
+
+bool ConfigManager::init(int argc, char** argv) {
+   try {
+      parser_.parse(argc, argv);
+      if (parser_.get<bool>("--help")) {
+         parser_.print_usage();
+         return false;
+      }
+      return true;
+   } catch (const std::exception& e) {
+      error() << "Init Error: " << e.what();
+      parser_.print_usage();
+      return false;
+   }
+}
+
+void ConfigManager::dump_config() {
+   std::lock_guard<std::mutex> lock(db_mutex_);
+
+   info() << "--- [Config DB Dump] ---";
+
+   for (const auto& [key, val] : database_) {
+      std::string v = "[Object]";
+
+      if (val.type() == typeid(int))
+         v = std::to_string(std::any_cast<int>(val));
+
+      else if (val.type() == typeid(bool))
+         v = std::any_cast<bool>(val) ? "true" : "false";
+
+      else if (val.type() == typeid(std::string))
+         v = std::any_cast<std::string>(val);
+
+      else if (val.type() == typeid(uint64_t)) {
+         std::stringstream ss;
+         ss << "0x" << std::hex << std::any_cast<uint64_t>(val);
+         v = ss.str();
+      }
+
+      info() << "Key: " << std::left << std::setw(20) << key
+             << " | Value: " << v;
+   }
+}
+
+void ConfigManager::init_vhost_device(int port_id, int vid, int nof_pairs) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   PortMap& pm = pmap_[port_id];
+
+   pm.vd.vid = vid;
+   pm.vd.nof_queue_pairs = nof_pairs;
+   pm.vd.ready = true;
+
+   for (int i = 0; i < nof_pairs; i++) {
+      // Typically in vhost: RX is even (0, 2..), TX is odd (1, 3..)
+      pm.vd.qp[i].rxq_id = i * 2;
+      pm.vd.qp[i].txq_id = (i * 2) + 1;
+      pm.vd.qp[i].rxq_enabled = false;
+      pm.vd.qp[i].txq_enabled = false;
+
+      pm.vd.qpid[i] = i;
+
+      // Initialize port fds to -1 (not connected yet)
+      pm.pd.qp[i].rxq_id = -1;
+      pm.pd.qp[i].txq_id = -1;
+
+      // CHECK is ready useful?
+      pm.vd.ready = true;
+      pm.vd.ctlq_id = nof_pairs * 2;  // CHECK
+   }
+}
+
+void ConfigManager::set_queue_state(int port_id, uint16_t vring_id,
+                                    bool enable) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   auto it = pmap_.find(port_id);
+
+   if (it == pmap_.end()) {
+      return;
+   }
+
+   VhostDevice& vd = it->second.vd;
+
+   // TODO need to add a check
+   // check if vring_id is less than nof_queue_pairs*2
+
+   for (int i = 0; i < vd.nof_queue_pairs; i++) {
+      if (vd.qp[i].rxq_id == vring_id) {
+         vd.qp[i].rxq_enabled = enable;
+         return;
+      }
+      if (vd.qp[i].txq_id == vring_id) {
+         vd.qp[i].txq_enabled = enable;
+         return;
+      }
+   }
+}
+
+void ConfigManager::assign_port_data_socket(int port_id, int qp_idx,
+                                            int socket_fd) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   if (pmap_.count(port_id) && qp_idx < vtb::MAX_QUEUE_PAIRS) {
+      // We assign the same FD to both handles
+      pmap_[port_id].pd.qp[qp_idx].rxq_id = socket_fd;
+      pmap_[port_id].pd.qp[qp_idx].txq_id = socket_fd;
+   }
+   // TODO if the if() fails then print error msg
+}
+
+void ConfigManager::assign_port_control_socket(int port_id, int ctl_fd) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   if (pmap_.count(port_id)) {
+      pmap_[port_id].pd.ctlq_id = ctl_fd;
+   }
+}
+
+void ConfigManager::print_portmap() {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   // Table Header
+   info() << std::left << std::setw(8) << "Port#" 
+                       << std::setw(6) << "Vid"
+                       << std::setw(8) << "No Qs" 
+                       << std::setw(8) << "QpID" 
+                       << std::setw(8) << "RxqId" 
+                       << std::setw(8) << "TxqId" 
+                       << std::setw(10) << "RxqId_En" 
+                       << std::setw(10) << "TxqId_En" 
+                       << std::setw(8) << "Ready" 
+                       << std::setw(8) << "CtrlId"
+                       << std::setw(8) << "RxqFd" 
+                       << std::setw(8) << "TxqFd" 
+                       << "CtrlFd";
+
+   info() << std::string(110, '-');
+
+   for (const auto& [port_id, map] : pmap_) {
+      const auto& vd = map.vd;
+      const auto& pd = map.pd;
+
+      for (int i = 0; i < vd.nof_queue_pairs; ++i) {
+         const auto& vqp = vd.qp[i];
+         const auto& pqp = pd.qp[i];
+         const auto& qpid = vd.qpid[i];
+
+         std::stringstream ss;
+
+         if (i == 0) {
+            // First row: Print Port, Vid, No Qs, Ready, CtrlID, and CtrlFd
+            ss << std::left << std::setw(8) << port_id 
+               << std::setw(6) << vd.vid
+               << std::setw(8) << vd.nof_queue_pairs 
+               << std::setw(8) << qpid 
+               << std::setw(8) << vqp.rxq_id 
+               << std::setw(8) << vqp.txq_id 
+               << std::setw(10) << (vqp.rxq_enabled ? "YES" : "NO") 
+               << std::setw(10) << (vqp.txq_enabled ? "YES" : "NO") 
+               << std::setw(8) << (vd.ready ? "YES" : "NO") 
+               << std::setw(8) << vd.ctlq_id
+               << std::setw(8) << (pqp.rxq_id == -1 ? "-" : std::to_string(pqp.rxq_id))
+               << std::setw(8) << (pqp.txq_id == -1 ? "-" : std::to_string(pqp.txq_id))
+               << pd.ctlq_id;
+         } else {
+            // Subsequent rows: Leave Port/Vid/NoQs/Ready/CtrlID/CtrlFd empty
+            ss << std::left << std::setw(22) << " "  // Port#, Vid, No Qs
+               << std::setw(8) << qpid 
+               << std::setw(8) << vqp.rxq_id << std::setw(8) << vqp.txq_id
+               << std::setw(10) << (vqp.rxq_enabled ? "YES" : "NO")
+               << std::setw(10) << (vqp.txq_enabled ? "YES" : "NO")
+               << std::setw(8) << " "  // Ready
+               << std::setw(8) << " "  // CtrlID
+               << std::setw(8)
+               << (pqp.rxq_id == -1 ? "-" : std::to_string(pqp.rxq_id))
+               << std::setw(8)
+               << (pqp.txq_id == -1 ? "-" : std::to_string(pqp.txq_id))
+               << " ";  // CtrlFd
+         }
+
+         info() << ss.str();
+      }
+      info() << std::string(110, '-');
+   }
+}
+
+std::tuple<int, uint16_t, uint16_t> ConfigManager::get_vhost_qids(int port_id,
+                                                                  int q_num) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   auto it = pmap_.find(port_id);
+   if (it == pmap_.end()) {
+      // Return -1 for vid to indicate the port was not found
+      return {-1, 0, 0};
+   }
+
+   const VhostDevice& vd = it->second.vd;
+
+   // Ensure the requested queue number is within the valid range for this
+   // device
+   if (q_num < 0 || q_num >= vd.nof_queue_pairs) {
+      return {-1, 0, 0};
+   }
+
+   // Return the rxq_id and txq_id of the specific queue pair index (q_num)
+   // for the Vhost side of the particular port.
+   uint16_t rxq = vd.qp[q_num].rxq_id;
+   uint16_t txq = vd.qp[q_num].txq_id;
+
+   return {vd.vid, rxq, txq};
+}
+
+bool ConfigManager::is_queue_ready(int vid, int qpid) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   auto it = pmap_.find(vid);
+   if (it == pmap_.end()) {
+      return false;
+   }
+   const VhostDevice& vd = it->second.vd;
+
+   if (vd.qp[qpid].rxq_enabled && vd.qp[qpid].txq_enabled) {
+      return true;
+   }
+   return false;
+}
+
+void ConfigManager::clear_device(int vid) {
+   std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   size_t deleted_count = pmap_.erase(vid);
+
+   if (deleted_count == 0) {
+      vtb::error() << "Device Id: " << vid << " was not found in PortMap";
+   } else {
+      vtb::details() << "Device Id: " << vid << " is remove from PortMap";
+   }
+}
+
+}  // namespace vtb

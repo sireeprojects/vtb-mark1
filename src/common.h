@@ -1,0 +1,93 @@
+#pragma once
+
+#include <unistd.h>
+
+#include <cstdint>
+#include <memory>
+#include <string_view>
+#include <thread>
+
+#include "messenger.h"
+
+namespace vtb {
+
+static constexpr int MAX_QUEUE_PAIRS = 8;
+
+struct VhostQueuePair {
+   uint16_t rxq_id;
+   uint16_t txq_id;
+   bool rxq_enabled;
+   bool txq_enabled;
+};
+
+struct VhostDevice {
+   int vid;
+   int nof_queue_pairs;
+   int qpid[MAX_QUEUE_PAIRS];
+   VhostQueuePair qp[MAX_QUEUE_PAIRS];
+   bool ready;
+   uint16_t ctlq_id;
+};
+
+struct PortQueuePair {
+   int rxq_id;
+   int txq_id;
+};
+
+struct PortDevice {
+   PortQueuePair qp[MAX_QUEUE_PAIRS];
+   int ctlq_id;
+};
+
+struct PortMap {
+   VhostDevice vd;
+   PortDevice pd;
+};
+
+struct PortDeviceEnables {
+   int port_id;
+   int device_id;
+   int rxdq_id;
+   int txdq_id;
+};
+
+struct PortDeviceRingState {
+   int meta;
+   int port_id;
+   int device_id;
+   int qid;
+   int enable;
+};
+
+class PortController;
+
+// The factory function declaration
+// std::unique_ptr<PortController> create_controller(std::string_view mode);
+
+int create_server_socket(const std::string& path);
+int create_client_socket(const std::string& path);
+
+void set_thread_name(std::thread& th, const std::string& name);
+
+void restore_echoctl();
+void disable_echoctl();
+
+bool is_even(int n);
+bool is_odd(int n);
+
+template <typename T>
+bool send_packet(int fd, const T& data) {
+   ssize_t bytes_sent = write(fd, &data, sizeof(T));
+
+   if (bytes_sent == -1) {
+      perror("write");
+      return false;
+   } else if (static_cast<size_t>(bytes_sent) < sizeof(T)) {
+      // Handle partial writes if necessary for large buffers
+      vtb::info() << "Warning: Partial write occurred";
+      return false;
+   }
+   return true;
+}
+
+}  // namespace vtb
