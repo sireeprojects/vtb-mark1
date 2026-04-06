@@ -129,13 +129,13 @@ void VhostController::on_new_device(int vid) {
                   << " is " << vring_count << " for with portnum "
                   << VhostController::port_cntr_;
 
-   config.init_vhost_device( VhostController::port_cntr_, vid, (vring_count / 2));
+   config.init_vhost_device(VhostController::port_cntr_, vid, (vring_count / 2));
    config.set_queue_state(vid, 0, 1);
    config.set_queue_state(vid, 1, 1);
 
    notify_port_controller(0, vid, 0, 1);
    notify_port_controller(0, vid, 1, 1);
-   VhostController::port_cntr_++;
+   VhostController::port_cntr_ += 1;
 }
 
 void VhostController::on_destroy_device(int vid) {
@@ -173,7 +173,8 @@ bool VhostController::notify_port_controller(int meta, int vid, uint16_t queue_i
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
       PortDeviceRingState pdrs = {meta, port_cntr_, vid, queue_id, enable};
       // vtb::send_packet(abstract_fd_, pdrs);
-   }
+   } 
+   // TODO port controller for emu needs to close their connections
    return false;
 }
 

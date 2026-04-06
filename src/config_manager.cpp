@@ -74,9 +74,11 @@ bool ConfigManager::init(int argc, char** argv) {
 void ConfigManager::init_vhost_device(int port_id, int vid, int nof_pairs) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
-   PortMap& pm = pmap_[port_id];
+   pvmap_[port_id] = vid; 
+   vpmap_[vid] = port_id; 
 
-   pm.vd.vid = vid;
+   PortMap& pm = pmap_[vid];
+   // pm.vd.vid = vid;
    pm.vd.nof_queue_pairs = nof_pairs;
    pm.vd.ready = true;
 
@@ -150,7 +152,8 @@ void ConfigManager::print_portmap() {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
    // Table Header
-   VTB_LOG(INFO) << std::left << std::setw(8) << "Port#" 
+   VTB_LOG(INFO) << std::left 
+                       << std::setw(8) << "Port#" 
                        << std::setw(6) << "Vid"
                        << std::setw(8) << "No Qs" 
                        << std::setw(8) << "QpID" 
@@ -166,7 +169,7 @@ void ConfigManager::print_portmap() {
 
     VTB_LOG(INFO)<< std::string(110, '-');
 
-   for (const auto& [port_id, map] : pmap_) {
+   for (const auto& [vid, map] : pmap_) {
       const auto& vd = map.vd;
       const auto& pd = map.pd;
 
@@ -179,8 +182,9 @@ void ConfigManager::print_portmap() {
 
          if (i == 0) {
             // First row: Print Port, Vid, No Qs, Ready, CtrlID, and CtrlFd
-            ss << std::left << std::setw(8) << port_id 
-               << std::setw(6) << vd.vid
+            ss << std::left << 
+               std::setw(8) << vpmap_[vid]
+               << std::setw(6) << vid
                << std::setw(8) << vd.nof_queue_pairs 
                << std::setw(8) << qpid 
                << std::setw(8) << vqp.rxq_id 
@@ -214,11 +218,11 @@ void ConfigManager::print_portmap() {
    }
 }
 
-std::tuple<int, uint16_t, uint16_t> ConfigManager::get_vhost_qids(int port_id,
+std::tuple<int, uint16_t, uint16_t> ConfigManager::get_vhost_qids(int vid,
                                                                   int q_num) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
-   auto it = pmap_.find(port_id);
+   auto it = pmap_.find(vid);
    if (it == pmap_.end()) {
       // Return -1 for vid to indicate the port was not found
       return {-1, 0, 0};
@@ -237,7 +241,7 @@ std::tuple<int, uint16_t, uint16_t> ConfigManager::get_vhost_qids(int port_id,
    uint16_t rxq = vd.qp[q_num].rxq_id;
    uint16_t txq = vd.qp[q_num].txq_id;
 
-   return {vd.vid, rxq, txq};
+   return {vid, rxq, txq};
 }
 
 bool ConfigManager::is_queue_ready(int vid, int qpid) {
@@ -258,12 +262,27 @@ bool ConfigManager::is_queue_ready(int vid, int qpid) {
 void ConfigManager::clear_device(int vid) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
-   size_t deleted_count = pmap_.erase(vid);
+   // do not change the order of delete
+   size_t  pmap_erased_count = pmap_.erase(vid);
+   size_t pvmap_erased_count = pvmap_.erase(vpmap_[vid]);
 
-   if (deleted_count == 0) {
-      VTB_LOG(ERROR) << "Device Id: " << vid << " was not found in PortMap";
+   // delete vpmap_ last because it is used in the deletion of pvmap
+   size_t vpmap_erased_count = vpmap_.erase(vid);
+
+   if (pmap_erased_count == 0) {
+      VTB_LOG(FATAL) << "Device Id: " << vid << " was not found in PortMap";
    } else {
       VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from PortMap";
+   }
+   if (pvmap_erased_count == 0) {
+      VTB_LOG(FATAL) << "Device Id: " << vid << " was not found in PVMAP";
+   } else {
+      VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from PVMAP";
+   }
+   if (vpmap_erased_count == 0) {
+      VTB_LOG(FATAL) << "Device Id: " << vid << " was not found in VPMAP";
+   } else {
+      VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from VPMAP";
    }
 }
 

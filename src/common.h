@@ -20,7 +20,6 @@ struct VhostQueuePair {
 };
 
 struct VhostDevice {
-   int vid;
    int nof_queue_pairs;
    int qpid[MAX_QUEUE_PAIRS];
    VhostQueuePair qp[MAX_QUEUE_PAIRS];
