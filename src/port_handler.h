@@ -6,20 +6,27 @@
 #include <cstdint>
 #include <unistd.h>
 #include <rte_mbuf.h>
+#include <rte_vhost.h>
 #include "messenger.h"
 #include "config_manager.h"
 
 namespace vtb {
+    static constexpr uint32_t MBUF_POOL_SIZE       = 8191;
+    static constexpr uint32_t MBUF_CACHE_SIZE      = 256;
+    static constexpr uint16_t PKT_BURST_SZ         = 32;
+    static constexpr uint16_t VIRTIO_RXQ           = 0;
+    static constexpr uint16_t VIRTIO_TXQ           = 1;
+    static constexpr uint32_t RING_SIZE            = 4096;  // must be power-of-2
+    static constexpr uint32_t MAX_ENQUEUE_RETRIES  = 1000;
 
 // Abstract base class (interface) for port handling.
 // TX and RX pipelines run on dedicated threads.
-// All pipeline methods are protected and are not
-// accessible to external users.
 class PortHandler {
 public:
-   PortHandler();
-   virtual ~PortHandler();
+   PortHandler() = default;
+   virtual ~PortHandler() = default;
 
+   // block copies
    PortHandler(const PortHandler&) = delete;
    PortHandler& operator=(const PortHandler&) = delete;
 
@@ -28,15 +35,10 @@ public:
 
    // Signals both threads to stop.
    void stop();
-
-   void set_ids(int devid, int rqid, int tqid) {
-      vid = devid;
-      rxqid = rqid;
-      txqid = tqid;
-   }
+   void set_ids(int devid, int rqid, int tqid);
 
 protected:
-   // TX pipeline — called in sequence by the transmit thread
+   // TX pipeline
    virtual void dequeue_tx_packets() = 0;
    virtual void extract_tx_metadata() = 0;
    virtual void decode_tx_metadata() = 0;
@@ -44,7 +46,7 @@ protected:
    virtual void create_tx_port_metadata() = 0;
    virtual void write_tx_packets() = 0;
 
-   // RX pipeline — called in sequence by the receive thread
+   // RX pipeline
    virtual void read_rx_packets() = 0;
    virtual void extract_rx_metadata() = 0;
    virtual void decode_rx_metadata() = 0;
@@ -52,7 +54,7 @@ protected:
    virtual void create_rx_vm_metadata() = 0;
    virtual void enqueue_rx_packets() = 0;
 
-   // Thread entry points — run the pipeline loops.
+   // workers
    virtual void tx_worker() = 0;
    virtual void rx_worker() = 0;
    virtual void tx_rx_worker() = 0;
@@ -73,16 +75,12 @@ protected:
 
    // used in both single/two thread model
    // used in both loopback/back2back model
-   struct rte_mempool *tx_mbuf_pool_;
-   struct rte_mempool *rx_mbuf_pool_;
+   struct rte_mempool *tx_mbuf_pool_{nullptr};
+   struct rte_mempool *rx_mbuf_pool_{nullptr};
 
    // used in back2back model only
-   struct rte_ring *tx_ring_;
-   struct rte_ring *rx_ring_;
-
-   // used in single/two thread model
-   // used in loopback only
-   // struct rte_ring *tx_rx_ring_;
+   struct rte_ring *tx_ring_{nullptr};
+   struct rte_ring *rx_ring_{nullptr};
 
    // statistics counters
    uint64_t tx_pkt_cnt_{0};

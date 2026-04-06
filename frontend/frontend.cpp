@@ -31,7 +31,7 @@ static void signal_handler(int signum) {
    // rte_eth_dev_stop(0);
 }
 
-static constexpr int num_ports = 8;
+static constexpr int num_ports = 1;
 
 class CustomFrontend {
 public:
@@ -109,8 +109,8 @@ public:
                 << std::endl;
 
       while (!force_quit) {
-         // send_burst(port_id);
-         // receive_burst(port_id);
+         send_burst(port_id);
+         receive_burst(port_id);
          // Throttle slightly to keep logs readable; remove for max performance
          rte_delay_us(500000);
       }

@@ -70,7 +70,7 @@ run:
 			--huge-unlink \
 			-- --help \
 			--mode Loopback \
-			--verbosity Info \
+			--verbosity Debug \
 			--mode-threads 1 \
 			--abstract_sockname absockname \
 			--port_data_sockname datasockname \

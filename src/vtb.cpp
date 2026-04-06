@@ -46,12 +46,12 @@ int main(int argc, char** argv) {
    vtb::set_verbosity(verbosity);
 
    // start the appropriate port controller
-   auto mode = config.get_arg<std::string>("-m");
+   auto mode = config.get_arg<std::string>("-mode");
    std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
    port_controller->start();
 
    // start vhost controller
-   auto socket_path = config.get_arg<std::string>("-vsn");
+   auto socket_path = config.get_arg<std::string>("--vhost_sockname");
    vtb::VhostController backend(socket_path.c_str());
    backend.init(argc, argv);
    backend.start();
@@ -59,14 +59,9 @@ int main(int argc, char** argv) {
    rte_eal_remote_launch(keep_alive, NULL, 2);
    rte_eal_mp_wait_lcore();
 
-   config.print_portmap();
-   // port_controller.reset();
+   // config.print_portmap();
 
    vtb::restore_echoctl();
-
-   // rte_eal_cleanup(); // create drouble free issue when trying to cleanup 
-                         // in class desctructors 
-
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";
    return 0;
 }

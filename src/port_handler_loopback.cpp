@@ -1,17 +1,8 @@
-#include "port_handler_loopback.h"
-
 #include <rte_errno.h>
 
-namespace vtb {
-   static constexpr uint32_t MBUF_POOL_SIZE  = 8191;
-   static constexpr uint32_t MBUF_CACHE_SIZE = 256;
-   static constexpr uint16_t PKT_BURST_SZ    = 32;
-   static constexpr uint16_t VIRTIO_RXQ      = 0;
-   static constexpr uint16_t VIRTIO_TXQ      = 1;
-   static constexpr uint32_t RING_SIZE       = 4096;  // must be power-of-2
+#include "port_handler_loopback.h"
 
-PortHandlerLoopback::PortHandlerLoopback() : PortHandler() {
-}
+namespace vtb {
 
 PortHandlerLoopback::~PortHandlerLoopback() {
    if (tx_thread_.joinable())
@@ -32,7 +23,6 @@ PortHandlerLoopback::~PortHandlerLoopback() {
 }
 
 void PortHandlerLoopback::start() {
-   // return;
 
    // start the appropriate port controller
    auto mode = vtb::ConfigManager::get_instance().get_arg<std::string>("--mode");
@@ -44,8 +34,7 @@ void PortHandlerLoopback::start() {
                << " TXQ: " << txqid
                << " Mode: " << mode
                << " ThreadMode: " << nof_threads;
-   // return;
-   
+
    // unique names for pools and rings
    std::string tx_pool_name = "TX_MBUF_POOL_" + std::to_string(vid) + "_" + std::to_string(txqid);
    std::string rx_pool_name = "RX_MBUF_POOL_" + std::to_string(vid) + "_" + std::to_string(rxqid);
@@ -145,6 +134,8 @@ void PortHandlerLoopback::tx_rx_worker() {
                << " TXQ: " << txqid;
    is_running_ = true;
    while (is_running_) {
+      dequeue_tx_packets();
+      enqueue_rx_packets();
       // VTB_LOG(INFO) << "PortHandlerLoopback: TX_RX running:"
       //    << " VID: " << vid
       //    << " RQID: " << rxqid
@@ -176,9 +167,34 @@ void PortHandlerLoopback::tx_rx_worker() {
    // rx_ring_ = nullptr;
 }
 
-// --- TX Pipeline Definitions ---
-
 void PortHandlerLoopback::dequeue_tx_packets() {
+   struct rte_mbuf* pkts[vtb::PKT_BURST_SZ];
+   uint16_t nb_tx = rte_vhost_dequeue_burst(
+         vid, 
+         VIRTIO_TXQ, 
+         tx_mbuf_pool_, 
+         pkts, 
+         PKT_BURST_SZ);
+
+   if (nb_tx == 0) {
+      return;
+   }
+
+	// Lossless enqueue into ring — retry until all are in
+	uint16_t sent = 0;
+	while (sent < nb_tx) {
+	    unsigned int pushed = rte_ring_sp_enqueue_burst(
+	        tx_ring_,
+	        reinterpret_cast<void**>(&pkts[sent]),
+	        nb_tx - sent,
+	        nullptr);
+	    sent += pushed;
+	    if (sent < nb_tx)
+	        usleep(1);  // backpressure: ring full, let consumer drain
+	}
+	tx_pkt_cnt_ += sent;
+   VTB_LOG(INFO) << "PortHandlerLoopback: Vhost Dequeued: " 
+      << nb_tx << " Ring Enqueued: " << sent ;
 }
 
 void PortHandlerLoopback::extract_tx_metadata() {
@@ -214,6 +230,56 @@ void PortHandlerLoopback::create_rx_vm_metadata() {
 }
 
 void PortHandlerLoopback::enqueue_rx_packets() {
+	struct rte_mbuf* pkts[PKT_BURST_SZ];
+	unsigned int nb_deq = rte_ring_sc_dequeue_burst(
+	    tx_ring_,
+	    reinterpret_cast<void**>(pkts),
+	    PKT_BURST_SZ,
+	    nullptr);
+	
+	if (nb_deq == 0) {
+	    return;
+	}
+
+	// Lossless enqueue to guest RX — retry until all accepted
+	uint16_t sent = 0;
+	uint32_t retries = 0;
+	while (sent < nb_deq && retries < MAX_ENQUEUE_RETRIES) {
+	    uint16_t nb_tx = rte_vhost_enqueue_burst(vid, VIRTIO_RXQ, &pkts[sent], nb_deq - sent);
+	    sent += nb_tx;
+	    if (sent < nb_deq) {
+	        retries++;
+	        usleep(1); // backpressure: guest RX ring full
+	    }
+	}
+
+	rx_pkt_cnt_ += sent;
+
+	if (sent < nb_deq) {
+		VTB_LOG(ERROR) << "PortHandlerLoopback: Enqueue Failed " 
+	      << "Pkts Dropped: " << MAX_ENQUEUE_RETRIES
+			<< " After: " << nb_deq - sent << "retries";
+
+	    // Free the mbufs that could not be delivered
+	    for (unsigned int i = sent; i < nb_deq; i++)
+	        rte_pktmbuf_free(pkts[i]); 
+	}
+
+	// Free delivered mbufs (vhost enqueue copies data)
+	for (uint16_t i = 0; i < sent; i++)
+	    rte_pktmbuf_free(pkts[i]);
+	
+	// Drain any remaining mbufs in the ring so they are not leaked */
+	unsigned int remaining;
+	do {
+	    struct rte_mbuf* pkts[PKT_BURST_SZ];
+	    remaining = rte_ring_sc_dequeue_burst(
+	        tx_ring_, reinterpret_cast<void**>(pkts), PKT_BURST_SZ, nullptr);
+	    for (unsigned int i = 0; i < remaining; i++)
+	        rte_pktmbuf_free(pkts[i]);
+	} while (remaining > 0);
+
+   VTB_LOG(INFO) << "PortHandlerLoopback: No of pkts Enqueued to Guest: " << rx_pkt_cnt_;
 }
 
 } // namespace vtb
