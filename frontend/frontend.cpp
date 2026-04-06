@@ -33,7 +33,7 @@ static void signal_handler(int signum) {
    // rte_eth_dev_stop(0);
 }
 
-static constexpr int num_ports = 8;
+static constexpr int num_ports = 2;
 
 class CustomFrontend {
 public:
