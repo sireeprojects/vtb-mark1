@@ -60,7 +60,7 @@ struct PortDeviceRingState {
 class PortController;
 
 // The factory function declaration
-// std::unique_ptr<PortController> create_controller(std::string_view mode);
+std::unique_ptr<PortController> create_controller(std::string_view mode);
 
 int create_server_socket(const std::string& path);
 int create_client_socket(const std::string& path);

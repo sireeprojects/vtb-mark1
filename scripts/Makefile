@@ -67,9 +67,10 @@ run:
 	@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
 	      --log-level=lib.vhost.config:3 \
 	      --log-level=lib.eal:3 \
+			--huge-unlink \
 	      -- --help \
 	      --mode Loopback \
-			--verbosity Trace \
+			--verbosity Info \
 	      --mode-threads 1 \
 	      --abstract_sockname absockname \
 	      --port_data_sockname datasockname \
@@ -77,6 +78,7 @@ run:
 	      --vhost_sockname /tmp/vhost-user.sock
 
 .PHONY: all clean run
+
 
 	#@printf "$(BLUE)Cleaning:$(RESET)   build artifacts\n"
 	#$(Q)rm -rf $(OBJ_DIR) $(TARGET) *.log

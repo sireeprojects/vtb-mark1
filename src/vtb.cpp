@@ -6,6 +6,7 @@
 #include "cmdline_parser.h"
 #include "config_manager.h"
 #include "vhost_controller.h"
+#include "port_controller_loopback.h"
 #include <rte_launch.h> // rte_eal_mp_wait_lcore
 #include <rte_pause.h>  // rte_pause
 
@@ -45,10 +46,9 @@ int main(int argc, char** argv) {
    vtb::set_verbosity(verbosity);
 
    // start the appropriate port controller
-   // auto mode = config.get_arg<std::string>("-m");
-   // std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
-
-   // port_controller->start();
+   auto mode = config.get_arg<std::string>("-m");
+   std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
+   port_controller->start();
 
    // start vhost controller
    auto socket_path = config.get_arg<std::string>("-vsn");
@@ -70,10 +70,3 @@ int main(int argc, char** argv) {
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";
    return 0;
 }
-
-//   VTB_LOG(FATAL)   << "1.this is a fatal level message";
-//   VTB_LOG(ERROR)   << "2.this is a error level message";
-//   VTB_LOG(WARNING) << "3.this is a warning level message";
-//   VTB_LOG(INFO)    << "4.this is a info level message";
-//   VTB_LOG(DEBUG)   << "5.this is a debug level message";
-//   VTB_LOG(TRACE)   << "6.this is a trace level message";

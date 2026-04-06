@@ -12,23 +12,23 @@
 
 // #include "port_controller_back2back.h"
 // #include "port_controller_emulator.h"
-// #include "port_controller_loopback.h"
+#include "port_controller_loopback.h"
 
 namespace vtb {
 
-// std::unique_ptr<PortController> create_controller(std::string_view mode) {
-//    if (mode == "Loopback") {
-//       return std::make_unique<PortControllerLoopback>();
-//    }
-//    if (mode == "Back2Back") {
-//       return std::make_unique<PortControllerBack2Back>();
-//    }
-//    if (mode == "Emulator") {
-//       return std::make_unique<PortControllerEmulator>();
-//    }
-//    // TODO add error message here
-//    return nullptr;
-// }
+std::unique_ptr<PortController> create_controller(std::string_view mode) {
+   if (mode == "Loopback") {
+      return std::make_unique<PortControllerLoopback>();
+   }
+   if (mode == "Back2Back") { // TODO
+      // return std::make_unique<PortControllerBack2Back>();
+   }
+   if (mode == "Emulator") { // TODO
+      // return std::make_unique<PortControllerEmulator>();
+   }
+   // TODO add error message here
+   return nullptr;
+}
 
 int create_client_socket(const std::string& path) {
    if (path.empty()) return -1;

@@ -270,19 +270,19 @@ void ConfigManager::clear_device(int vid) {
    size_t vpmap_erased_count = vpmap_.erase(vid);
 
    if (pmap_erased_count == 0) {
-      VTB_LOG(FATAL) << "Device Id: " << vid << " was not found in PortMap";
+      VTB_LOG(FATAL) << "ConfigManager: Device Id: " << vid << " was not found in PortMap";
    } else {
-      VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from PortMap";
+      VTB_LOG(DEBUG) << "ConfigManager: Device Id: " << vid << " is remove from PortMap";
    }
    if (pvmap_erased_count == 0) {
-      VTB_LOG(FATAL) << "Device Id: " << vid << " was not found in PVMAP";
+      VTB_LOG(FATAL) << "ConfigManager: Device Id: " << vid << " was not found in PVMAP";
    } else {
-      VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from PVMAP";
+      VTB_LOG(DEBUG) << "ConfigManager: Device Id: " << vid << " is remove from PVMAP";
    }
    if (vpmap_erased_count == 0) {
-      VTB_LOG(FATAL) << "Device Id: " << vid << " was not found in VPMAP";
+      VTB_LOG(FATAL) << "ConfigManager: Device Id: " << vid << " was not found in VPMAP";
    } else {
-      VTB_LOG(DEBUG) << "Device Id: " << vid << " is remove from VPMAP";
+      VTB_LOG(DEBUG) << "ConfigManager: Device Id: " << vid << " is remove from VPMAP";
    }
 }
 
