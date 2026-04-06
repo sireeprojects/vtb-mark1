@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
    vtb::set_verbosity(verbosity);
 
    // start the appropriate port controller
-   auto mode = config.get_arg<std::string>("-mode");
+   auto mode = config.get_arg<std::string>("--mode");
    std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
    port_controller->start();
 
