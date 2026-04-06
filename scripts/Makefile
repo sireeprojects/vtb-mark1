@@ -65,17 +65,17 @@ clean:
 # Run command for DPDK environment
 run:
 	@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
-	      --log-level=lib.vhost.config:3 \
-	      --log-level=lib.eal:3 \
+			--log-level=lib.vhost.config:3 \
+			--log-level=lib.eal:3 \
 			--huge-unlink \
-	      -- --help \
-	      --mode Loopback \
+			-- --help \
+			--mode Loopback \
 			--verbosity Info \
-	      --mode-threads 1 \
-	      --abstract_sockname absockname \
-	      --port_data_sockname datasockname \
-	      --port_control_sockname controlsockname \
-	      --vhost_sockname /tmp/vhost-user.sock
+			--mode-threads 1 \
+			--abstract_sockname absockname \
+			--port_data_sockname datasockname \
+			--port_control_sockname controlsockname \
+			--vhost_sockname /tmp/vhost-user.sock
 
 .PHONY: all clean run
 
