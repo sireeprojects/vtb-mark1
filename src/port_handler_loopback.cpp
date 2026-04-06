@@ -84,7 +84,7 @@ void PortHandlerLoopback::start() {
          rx_ring_ = tx_ring_;
          // start tx_rx_thread_
          tx_rx_thread_ = std::thread(&PortHandlerLoopback::tx_rx_worker, this);
-         tx_rx_thread_.detach();
+         // tx_rx_thread_.detach(); // CHECK: results in a segfault
       }
       else if (nof_threads == 2) {
          VTB_LOG(DEBUG) << "PortHandlerLoopback: Inside Loopback mode, Two thread mode"

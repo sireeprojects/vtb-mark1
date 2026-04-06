@@ -1,5 +1,3 @@
-#include <unistd.h>
-
 #include <csignal>
 #include <cstring>
 #include <iostream>
@@ -7,19 +5,23 @@
 #include <vector>
 #include <unistd.h>
 
-// DPDK Includes
 #include <rte_config.h>
 #include <rte_cycles.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 #include <rte_ether.h>
 #include <rte_mbuf.h>
-#include <rte_version.h>  // Required header
+#include <rte_version.h>
 
-#define BURST_SIZE 32
-#define PRIV_DATA_SIZE 48
-#define MBUF_CACHE_SIZE 256
-#define MEMPOOL_SIZE 8191
+static constexpr uint32_t MBUF_POOL_SIZE      = 8191;
+static constexpr uint32_t MBUF_CACHE_SIZE     = 256;
+static constexpr uint16_t PKT_BURST_SZ        = 32;
+static constexpr uint16_t PRIV_DATA_SIZE      = 48;
+static constexpr uint16_t VIRTIO_RXQ          = 0;
+static constexpr uint16_t VIRTIO_TXQ          = 1;
+static constexpr uint32_t RING_SIZE           = 4096;
+static constexpr uint32_t MAX_ENQUEUE_RETRIES = 1000;
+
 
 static volatile bool force_quit = false;
 static void signal_handler(int signum) {
@@ -31,7 +33,7 @@ static void signal_handler(int signum) {
    // rte_eth_dev_stop(0);
 }
 
-static constexpr int num_ports = 1;
+static constexpr int num_ports = 8;
 
 class CustomFrontend {
 public:
@@ -45,7 +47,7 @@ public:
 
       // 2. Create Mbuf Pool
       mbuf_pool_ = rte_pktmbuf_pool_create(
-          "FRONTEND_POOL", MEMPOOL_SIZE, MBUF_CACHE_SIZE, 0,
+          "FRONTEND_POOL", MBUF_POOL_SIZE, MBUF_CACHE_SIZE, 0,
           RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
       if (!mbuf_pool_) throw std::runtime_error("Mbuf Pool Allocation Failed");
 
@@ -109,8 +111,8 @@ public:
                 << std::endl;
 
       while (!force_quit) {
-         send_burst(port_id);
-         receive_burst(port_id);
+         // send_burst(port_id);
+         // receive_burst(port_id);
          // Throttle slightly to keep logs readable; remove for max performance
          rte_delay_us(500000);
       }
@@ -121,8 +123,8 @@ private:
    struct rte_mempool* mbuf_pool_;
 
    void send_burst(uint16_t port_id) {
-      struct rte_mbuf* pkts[BURST_SIZE];
-      for (int i = 0; i < BURST_SIZE; i++) {
+      struct rte_mbuf* pkts[PKT_BURST_SZ];
+      for (int i = 0; i < PKT_BURST_SZ; i++) {
          pkts[i] = rte_pktmbuf_alloc(mbuf_pool_);
          if (!pkts[i]) continue;
 
@@ -143,20 +145,20 @@ private:
          pkts[i]->pkt_len = pkts[i]->data_len;
       }
 
-      uint16_t sent = rte_eth_tx_burst(port_id, 0, pkts, BURST_SIZE);
+      uint16_t sent = rte_eth_tx_burst(port_id, 0, pkts, PKT_BURST_SZ);
       if (sent > 0) {
          std::cout << "[FRONTEND] Sent " << sent << " packets." << std::endl;
       }
 
       // Free unsent packets
-      if (unlikely(sent < BURST_SIZE)) {
-         for (uint16_t i = sent; i < BURST_SIZE; i++) rte_pktmbuf_free(pkts[i]);
+      if (unlikely(sent < PKT_BURST_SZ)) {
+         for (uint16_t i = sent; i < PKT_BURST_SZ; i++) rte_pktmbuf_free(pkts[i]);
       }
    }
 
    void receive_burst(uint16_t port_id) {
-      struct rte_mbuf* pkts[BURST_SIZE];
-      uint16_t rcved = rte_eth_rx_burst(port_id, 0, pkts, BURST_SIZE);
+      struct rte_mbuf* pkts[PKT_BURST_SZ];
+      uint16_t rcved = rte_eth_rx_burst(port_id, 0, pkts, PKT_BURST_SZ);
       if (rcved > 0) {
          std::cout << "[FRONTEND] Received " << rcved
                    << " packets back from loopback." << std::endl;
