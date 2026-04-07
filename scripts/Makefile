@@ -68,7 +68,7 @@ run:
 			--log-level=lib.vhost.config:3 \
 			--log-level=lib.eal:3 \
 			--huge-unlink \
-			-- --help \
+			-- \
 			--mode Loopback \
 			--verbosity Trace \
 			--mode-threads 1 \
@@ -80,8 +80,7 @@ run:
 .PHONY: all clean run
 
 
-	#@printf "$(BLUE)Cleaning:$(RESET)   build artifacts\n"
-	#$(Q)rm -rf $(OBJ_DIR) $(TARGET) *.log
+		#--help \
 
 		#--no-huge \
 
