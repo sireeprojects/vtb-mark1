@@ -116,6 +116,14 @@ public:
          // Throttle slightly to keep logs readable; remove for max performance
          rte_delay_us(500000);
       }
+
+   RTE_ETH_FOREACH_DEV(port_id) {
+      std::cout << "Stopping Device: " << port_id << std::endl;
+      rte_eth_dev_stop(port_id);
+      std::cout << "Closing Device: " << port_id << std::endl;
+      rte_eth_dev_close(port_id);
+   }
+   sleep(1);   
       rte_eal_cleanup();
    }
 

@@ -72,10 +72,10 @@ run:
 			--mode Loopback \
 			--verbosity Trace \
 			--mode-threads 1 \
-			--abstract_sockname absockname \
-			--port_data_sockname datasockname \
-			--port_control_sockname controlsockname \
-			--vhost_sockname /tmp/vhost-user.sock
+			--abstract-sockname absockname \
+			--port-data-sockname datasockname \
+			--port-control-sockname controlsockname \
+			--vhost-sockname /tmp/vhost-user.sock
 
 .PHONY: all clean run
 

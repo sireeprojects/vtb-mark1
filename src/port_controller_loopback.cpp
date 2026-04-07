@@ -13,7 +13,7 @@ PortControllerLoopback::~PortControllerLoopback() {
 }
 
 void PortControllerLoopback::create_server() {
-   abstract_sockname_ = vtb::ConfigManager::get_instance().get_arg<std::string>("-absn");
+   abstract_sockname_ = vtb::ConfigManager::get_instance().get_arg<std::string>("--abstract-sockname");
    std::string sock_path = std::string(1, '\0') + abstract_sockname_;
 
    if (sock_path.size() > 0 && sock_path[0] == '\0') {

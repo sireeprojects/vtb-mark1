@@ -21,22 +21,22 @@ ConfigManager::ConfigManager() {
                         "1 | 2", 
                         false, 
                         "1");
-   parser_.add_argument("--abstract_sockname", 
+   parser_.add_argument("--abstract-sockname",
                         "-absn", 
                         "Specify a random name. For internal use only", 
                         false, 
                         "cm_to_ph_sock");
-   parser_.add_argument("--port_data_sockname",
+   parser_.add_argument("--port-data-sockname",
                         "-pdsn", 
                         "Unix socket path to connect to port data plane", 
                         false, 
                         "/tmp/port_data.sock");
-   parser_.add_argument("--port_control_sockname", 
+   parser_.add_argument("--port-control-sockname",
                         "-pcsn", 
                         "Unix socket path to connect to port control plane", 
                         false, 
                         "/tmp/port_ctrl.sock");
-   parser_.add_argument("--vhost_sockname", 
+   parser_.add_argument("--vhost-sockname",
                         "-vsn", 
                         "Unix socket path to connect to virtual machine", 
                         false, 

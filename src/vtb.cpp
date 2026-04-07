@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
    port_controller->start();
 
    // start vhost controller
-   auto socket_path = config.get_arg<std::string>("--vhost_sockname");
+   auto socket_path = config.get_arg<std::string>("--vhost-sockname");
    vtb::VhostController backend(socket_path.c_str());
    backend.init(argc, argv);
    backend.start();

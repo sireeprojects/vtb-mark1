@@ -161,7 +161,7 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
 }
 
 void VhostController::create_client() {
-   abstract_sockname_ = config.get_arg<std::string>("-absn");
+   abstract_sockname_ = config.get_arg<std::string>("--abstract-sockname");
    std::string sock_path = std::string(1, '\0') + abstract_sockname_;
    VTB_LOG(DEBUG) << "VhostControler: Abstract Socket Name: "
                   << abstract_sockname_;
