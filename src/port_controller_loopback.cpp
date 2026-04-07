@@ -64,6 +64,21 @@ void PortControllerLoopback::epoll_worker() {
    }
 }
 
+
+void PortControllerLoopback::stop_all_ports_for_vid(int vid) {
+    auto it = port_handler_.find(vid);
+
+    // Check if this VID actually exists in our map
+    if (it != port_handler_.end()) {
+        // it->second is the inner map: std::map<int, std::unique_ptr<...>>
+        for (auto const& [qid, handler_ptr] : it->second) {
+            if (handler_ptr) {
+                handler_ptr->stop();
+            }
+        }
+    }
+}
+
 void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
    VTB_LOG(DEBUG) << "PortControllerLoopback: Received:"
                << "  meta: " << pdrs.meta
@@ -73,25 +88,8 @@ void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
 
    // device destroyed
    // CHECK if just calling stop() is sufficient
-   // if (pdrs.meta == 1) {
-   //    for (int id=0; id<8; id++) // TODO raw value 8
-   //       port_handler_[id]->stop(); 
-   //    return;
-   // }
-
-   // device destroyed
-   // CHECK if just calling stop() is sufficient
-   //if (pdrs.meta == 1) {
-   //   port_handler_[pdrs.device_id]->stop();
-   //   return;
-   //}
-   
    if (pdrs.meta == 1) {
-      std::for_each(port_handler_.begin(), port_handler_.end(), [](auto const& pair) {
-         if (pair.second) {
-            pair.second->stop();
-         }
-      });
+      stop_all_ports_for_vid(pdrs.device_id);
       return;
    }
 
@@ -119,17 +117,11 @@ void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
                << " VID: " << pdrs.device_id
                << " PairID" << pdrs.qid/2;
 
-            // auto& new_port = port_handler_.emplace_back(std::make_unique<vtb::PortHandlerLoopback>());
-            // new_port->set_ids(pdrs.device_id, pdrs.qid-1, pdrs.qid);
-            // port_handler_[pdrs.qid/2]->set_ids(pdrs.device_id, pdrs.qid-1, pdrs.qid);
-            
             // Create port handler on demand and start it 
-            port_handler_[pdrs.qid/2] = std::make_unique<vtb::PortHandlerLoopback>();
-            port_handler_[pdrs.qid/2]->set_ids(pdrs.device_id, pdrs.qid-1, pdrs.qid);
+            port_handler_[pdrs.device_id][pdrs.qid/2] = std::make_unique<vtb::PortHandlerLoopback>();
+            port_handler_[pdrs.device_id][pdrs.qid/2]->set_ids(pdrs.device_id, pdrs.qid-1, pdrs.qid);
             try {
-               // port_handler_[pdrs.qid/2]->start(); 
-               // new_port->start();
-               port_handler_[pdrs.qid/2]->start();
+               port_handler_[pdrs.device_id][pdrs.qid/2]->start();
             } catch (const std::exception& e) {
                VTB_LOG(ERROR) << "PortHandler start failed: " << e.what();
             }

@@ -25,6 +25,8 @@ private:
    static constexpr int MAX_EVENTS = 10;
    static constexpr int BUFFER_SIZE = 1024;
 
+   void stop_all_ports_for_vid(int vid);
+
    std::string abstract_sockname_{};
    int abstract_fd_{-1};
    int epoll_fd{-1};

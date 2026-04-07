@@ -28,7 +28,7 @@ protected:
 
    std::thread worker_;
    std::atomic<bool> is_running_{false};
-   std::map<int, std::unique_ptr<vtb::PortHandler>> port_handler_;
+   std::map<int, std::map<int, std::unique_ptr<vtb::PortHandler>>> port_handler_;
 };
 
 }  // namespace vtb
