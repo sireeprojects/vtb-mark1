@@ -33,7 +33,7 @@ VhostController::VhostController(std::string socket_path) : socket_path_{std::mo
           "VhostController: Only one VhostController instance allowed");
    }
 
-   mode_ = config.get_arg<std::string>("-m");
+   mode_ = config.get_arg<std::string>("--mode");
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
       VTB_LOG(DEBUG) << "VhostController: Tring to connect to Abstract socket server...";
       create_client();

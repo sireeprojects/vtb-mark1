@@ -17,15 +17,15 @@ ConfigManager::ConfigManager() {
                         false, 
                         "Loopback");
    parser_.add_argument("--txrx-threads",
-                        "-mth", 
+                        "-txrxth",
                         "1 | 2", 
                         false, 
                         "1");
-   parser_.add_argument("--mq-on-single-thread",
-                        "-mqh",
-                        "Process data from multiples queues of a port on a same thread",
+   parser_.add_argument("--threading-mode",
+                        "-thmode",
+                        "EachQ-OneThread | EachQPair-OneThread | AllQPair-OneThread",
                         false,
-                        "true");
+                        "1");
    parser_.add_argument("--abstract-sockname",
                         "-absn", 
                         "Specify a random name. For internal use only", 
