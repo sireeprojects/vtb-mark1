@@ -71,7 +71,8 @@ run:
 			-- \
 			--mode Loopback \
 			--verbosity Trace \
-			--mode-threads 1 \
+			--txrx-threads 1 \
+			--mq-on-single-thread true \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
 			--port-control-sockname controlsockname \

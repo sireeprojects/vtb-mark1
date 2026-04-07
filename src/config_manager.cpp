@@ -16,11 +16,16 @@ ConfigManager::ConfigManager() {
                         "Loopback | Back2Back | Emulator", 
                         false, 
                         "Loopback");
-   parser_.add_argument("--mode-threads",
+   parser_.add_argument("--txrx-threads",
                         "-mth", 
                         "1 | 2", 
                         false, 
                         "1");
+   parser_.add_argument("--mq-on-single-thread",
+                        "-mqh",
+                        "Process data from multiples queues of a port on a same thread",
+                        false,
+                        "true");
    parser_.add_argument("--abstract-sockname",
                         "-absn", 
                         "Specify a random name. For internal use only", 

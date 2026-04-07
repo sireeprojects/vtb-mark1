@@ -26,7 +26,7 @@ void PortHandlerLoopback::start() {
 
    // start the appropriate port controller
    auto mode = vtb::ConfigManager::get_instance().get_arg<std::string>("--mode");
-   auto nof_threads = vtb::ConfigManager::get_instance().get_arg<int>("--mode-threads");
+   auto nof_threads = vtb::ConfigManager::get_instance().get_arg<int>("--txrx-threads");
 
    VTB_LOG(DEBUG) << "PortHandlerLoopback: Starting thread"
                << " VID: " << vid
