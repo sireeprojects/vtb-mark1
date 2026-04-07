@@ -129,3 +129,50 @@ void set_verbosity(std::string level_str) {
 }
 
 }  // namespace vtb
+
+// word wrapping at spaces only
+// void Logger::log(LogLevel msg_level, std::string&& message) {
+//    if (msg_level <= level_) {
+//       std::lock_guard<std::mutex> lock(mutex_);
+// 
+//       const size_t max_line_width = 80;
+//       std::string_view level_name = get_level_name(msg_level);
+//       size_t indent_size = level_name.length();
+// 
+//       active_buffer_.append(level_name);
+// 
+//       size_t start = 0;
+//       while (start < message.length()) {
+//          size_t remaining = message.length() - start;
+// 
+//          // If the rest of the message fits on one line, we are done
+//          if (remaining <= max_line_width) {
+//             active_buffer_.append(message.substr(start)).append("\n");
+//             break;
+//          }
+// 
+//          // Look for the last space within the max_line_width range
+//          size_t end = start + max_line_width;
+//          size_t last_space = message.find_last_of(' ', end);
+// 
+//          // Determine where to break
+//          size_t break_at;
+//          if (last_space != std::string::npos && last_space >= start) {
+//             // Found a space: break there and skip the space itself for the next line
+//             break_at = last_space;
+//             active_buffer_.append(message.substr(start, break_at - start)).append("\n");
+//             start = break_at + 1;
+//          } else {
+//             // No space found: force break at the limit (long word case)
+//             break_at = end;
+//             active_buffer_.append(message.substr(start, break_at - start)).append("\n");
+//             start = break_at;
+//          }
+// 
+//          // If more text remains, add indentation to align with the first line
+//          if (start < message.length()) {
+//             active_buffer_.append(indent_size, ' ');
+//          }
+//       }
+//    }
+// }
