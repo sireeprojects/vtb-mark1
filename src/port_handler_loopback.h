@@ -14,9 +14,9 @@ public:
     void start() override;
 
 protected:
-    void tx_worker() override;
-    void rx_worker() override;
-    void tx_rx_worker() override;
+    void txq_worker() override;
+    void rxq_worker() override;
+    void txq_rxq_worker() override;
 
     void dequeue_tx_packets() override;
     void extract_tx_metadata() override;

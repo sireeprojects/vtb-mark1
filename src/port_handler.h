@@ -55,9 +55,9 @@ protected:
    virtual void enqueue_rx_packets() = 0;
 
    // workers
-   virtual void tx_worker() = 0;
-   virtual void rx_worker() = 0;
-   virtual void tx_rx_worker() = 0;
+   virtual void txq_worker() = 0;
+   virtual void rxq_worker() = 0;
+   virtual void txq_rxq_worker() = 0;
 
    std::atomic<bool> is_running_{false};
 
@@ -67,24 +67,24 @@ protected:
 
    // used in two thread model only
    // used in both loopback/back2back model
-   std::thread tx_thread_;
-   std::thread rx_thread_;
+   std::thread txq_thread_;
+   std::thread rxq_thread_;
 
    // used in single thread model only
-   std::thread tx_rx_thread_;
+   std::thread txq_rxq_thread_;
 
    // used in both single/two thread model
    // used in both loopback/back2back model
-   struct rte_mempool *tx_mbuf_pool_{nullptr};
-   struct rte_mempool *rx_mbuf_pool_{nullptr};
+   struct rte_mempool *txq_mbuf_pool_{nullptr};
+   struct rte_mempool *rxq_mbuf_pool_{nullptr};
 
    // used in back2back model only
-   struct rte_ring *tx_ring_{nullptr};
-   struct rte_ring *rx_ring_{nullptr};
+   struct rte_ring *txq_ring_{nullptr};
+   struct rte_ring *rxq_ring_{nullptr};
 
    // statistics counters
-   uint64_t tx_pkt_cnt_{0};
-   uint64_t rx_pkt_cnt_{0};
+   uint64_t txq_pkt_cnt_{0};
+   uint64_t rxq_pkt_cnt_{0};
    // TODO add if any other data needs to be captured
 
    // performance statistics

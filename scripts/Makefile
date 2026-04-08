@@ -70,15 +70,16 @@ run:
 			--huge-unlink \
 			-- \
 			--mode Loopback \
-			--verbosity Trace \
+			--verbosity Info \
 			--txrx-threads 1 \
-			--mq-on-single-thread true \
+			--threading-mode EachQ-OneThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
 			--port-control-sockname controlsockname \
 			--vhost-sockname /tmp/vhost-user.sock
 
 .PHONY: all clean run
+
 
 
 		#--help \

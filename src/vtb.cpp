@@ -7,26 +7,17 @@
 #include "config_manager.h"
 #include "vhost_controller.h"
 #include "port_controller_loopback.h"
-#include <rte_launch.h> // rte_eal_mp_wait_lcore
-#include <rte_pause.h>  // rte_pause
+#include <rte_launch.h>
+#include <rte_pause.h>
 
-bool stop_blocking_{false};
-static int keep_alive(void*) {
-   while (!stop_blocking_) {
-      rte_pause();
-   }
-   return 0;
-}
-
-static void signal_handler(int) {
-   VTB_LOG(FATAL) << "<User Pressed Ctrl+C>";
-   stop_blocking_ = true;
-}
+bool keep_running{false};
+static int keep_alive_thread(void*);
+static void signal_handler(int);
 
 int main(int argc, char** argv) {
    vtb::disable_echoctl();
 
-   // assign signal handlers for graceful exit
+   // assign signal handlers
    std::set_terminate(vtb::graceful_exit);
    std::signal(SIGINT, signal_handler);
    std::signal(SIGTERM, signal_handler);
@@ -56,12 +47,24 @@ int main(int argc, char** argv) {
    backend.init(argc, argv);
    backend.start();
 
-   rte_eal_remote_launch(keep_alive, NULL, 2);
-   rte_eal_mp_wait_lcore();
+   unsigned int next_core = rte_get_next_lcore(rte_get_main_lcore(), 1, 0);
+   rte_eal_remote_launch(keep_alive_thread, NULL, next_core);
 
-   // config.print_portmap();
+   rte_eal_mp_wait_lcore();
 
    vtb::restore_echoctl();
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";
+   return 0;
+}
+
+static void signal_handler(int) {
+   VTB_LOG(FATAL) << "<User Pressed Ctrl+C>";
+   keep_running = true;
+}
+
+static int keep_alive_thread(void*) {
+   while (!keep_running) {
+      rte_pause();
+   }
    return 0;
 }

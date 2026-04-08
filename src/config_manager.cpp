@@ -23,9 +23,9 @@ ConfigManager::ConfigManager() {
                         "1");
    parser_.add_argument("--threading-mode",
                         "-thmode",
-                        "EachQ-OneThread | EachQPair-OneThread | AllQPair-OneThread",
+                        "EachQ-TwoThread | EachQ-OneThread | AllQ-TwoThread | AllQ-OneThread",
                         false,
-                        "1");
+                        "EachQ-OneThread");
    parser_.add_argument("--abstract-sockname",
                         "-absn", 
                         "Specify a random name. For internal use only", 

@@ -5,167 +5,195 @@
 namespace vtb {
 
 PortHandlerLoopback::~PortHandlerLoopback() {
-   if (tx_thread_.joinable())
-      tx_thread_.join();
-   if (rx_thread_.joinable())
-      rx_thread_.join();
-   if (tx_rx_thread_.joinable())
-      tx_rx_thread_.join();
 
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: destructor: "
-                  << " vid: " << vid
-                  << " rxqid: " << rxqid
-                  << " txqid: " << txqid;
-   if (tx_mbuf_pool_) { rte_mempool_free(tx_mbuf_pool_); tx_mbuf_pool_ = nullptr; }
-   if (rx_mbuf_pool_) { rte_mempool_free(rx_mbuf_pool_); rx_mbuf_pool_ = nullptr; }
-   if (tx_ring_) { rte_ring_free(tx_ring_); tx_ring_ = nullptr; }
-   rx_ring_ = nullptr;
+   if (txq_thread_.joinable())
+      txq_thread_.join();
+
+   if (rxq_thread_.joinable())
+      rxq_thread_.join();
+
+   if (txq_rxq_thread_.joinable())
+      txq_rxq_thread_.join();
+
+   VTB_LOG(DEBUG) 
+      << "PortHandlerLoopback: destructor: "
+      << " vid: " << vid
+      << " rxqid: " << rxqid
+      << " txqid: " << txqid;
+
+   if (txq_mbuf_pool_) {
+      rte_mempool_free(txq_mbuf_pool_);
+      txq_mbuf_pool_ = nullptr;
+   }
+   if (rxq_mbuf_pool_) {
+      rte_mempool_free(rxq_mbuf_pool_);
+      rxq_mbuf_pool_ = nullptr;
+   }
+   if (txq_ring_) {
+      rte_ring_free(txq_ring_);
+      txq_ring_ = nullptr;
+   }
+   rxq_ring_ = nullptr;
 }
 
 void PortHandlerLoopback::start() {
 
    // start the appropriate port controller
    auto mode = vtb::ConfigManager::get_instance().get_arg<std::string>("--mode");
-   auto nof_threads = vtb::ConfigManager::get_instance().get_arg<int>("--txrx-threads");
+   // auto nof_threads = vtb::ConfigManager::get_instance().get_arg<int>("--txrx-threads");
 
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: Starting thread"
-               << " VID: " << vid
-               << " RXQ: " << rxqid
-               << " TXQ: " << txqid
-               << " Mode: " << mode
-               << " ThreadMode: " << nof_threads;
+   auto threading_mode = vtb::ConfigManager::get_instance().get_arg<std::string>("--threading-mode");
+
+   // "EachQ-TwoThread | EachQ-OneThread | AllQ-TwoThread | AllQ-OneThread",
+
+   VTB_LOG(DEBUG) 
+      << "PortHandlerLoopback: Starting thread"
+      << " VID: " << vid
+      << " RXQ: " << rxqid
+      << " TXQ: " << txqid
+      << " Mode: " << mode
+      << " ThreadMode: " << threading_mode;
 
    // unique names for pools and rings
-   std::string tx_pool_name = "TX_MBUF_POOL_" + std::to_string(vid) + "_" + std::to_string(txqid);
-   std::string rx_pool_name = "RX_MBUF_POOL_" + std::to_string(vid) + "_" + std::to_string(rxqid);
-   std::string tx_ring_name = "TX_RING_"      + std::to_string(vid) + "_" + std::to_string(txqid);
+   std::string tx_pool_name = "TX_MBUF_POOL_" + 
+                              std::to_string(vid) + "_" +
+                              std::to_string(txqid);
 
-   // create tx_mbuf_pool_
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: Creating Transmit MBUF Pool: " << tx_pool_name;
-   tx_mbuf_pool_ = rte_pktmbuf_pool_create(tx_pool_name.c_str(),
+   std::string rx_pool_name = "RX_MBUF_POOL_" +
+                              std::to_string(vid) + "_" +
+                              std::to_string(rxqid);
+
+   std::string txq_ring_name = "TX_RING_" + 
+                              std::to_string(vid) + "_" +
+                              std::to_string(txqid);
+
+   // create txq_mbuf_pool_
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Creating Transmit MBUF Pool: " 
+                  << tx_pool_name;
+
+   txq_mbuf_pool_ = rte_pktmbuf_pool_create(tx_pool_name.c_str(),
                    MBUF_POOL_SIZE,
                    MBUF_CACHE_SIZE,
                    0,
                    RTE_MBUF_DEFAULT_BUF_SIZE,
                    rte_socket_id());
-   if (!tx_mbuf_pool_)
-      throw std::runtime_error("PortHandlerLoopback: Cannot create TX MBUF Pool: " + tx_pool_name + " rte_errno:" + std::to_string(rte_errno));
+
+   if (!txq_mbuf_pool_)
+      throw std::runtime_error("PortHandlerLoopback: Cannot create TX MBUF Pool: "
+                               + tx_pool_name + " rte_errno:" +
+                               std::to_string(rte_errno));
    
-   // create rx_mbuf_pool_
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: Creating Receive MBUF Pool: " << rx_pool_name;
-   rx_mbuf_pool_ = rte_pktmbuf_pool_create(rx_pool_name.c_str(),
+   // create rxq_mbuf_pool_
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Creating Receive MBUF Pool: "
+                  << rx_pool_name;
+
+   rxq_mbuf_pool_ = rte_pktmbuf_pool_create(rx_pool_name.c_str(),
                    MBUF_POOL_SIZE,
                    MBUF_CACHE_SIZE,
                    0,
                    RTE_MBUF_DEFAULT_BUF_SIZE,
                    rte_socket_id());
-   if (!rx_mbuf_pool_)
-      throw std::runtime_error("PortHandlerLoopback: Cannot create RX MBUF Pool: " + rx_pool_name + " rte_errno:" + std::to_string(rte_errno));
+
+   if (!rxq_mbuf_pool_)
+      throw std::runtime_error("PortHandlerLoopback: Cannot create RX MBUF Pool: "
+                               + rx_pool_name + " rte_errno:" +
+                               std::to_string(rte_errno));
    
-   // create tx_ring_
-   /* SP/SC ring: single-producer (dequeue thread), single-consumer (enqueue thread) */
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: Creating Ring: " << tx_ring_name;
-   tx_ring_ = rte_ring_create(tx_ring_name.c_str(),
+   // create txq_ring_
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Creating Ring: " << txq_ring_name;
+
+   txq_ring_ = rte_ring_create(txq_ring_name.c_str(),
                   RING_SIZE, 
                   rte_socket_id(),
                   RING_F_SP_ENQ | RING_F_SC_DEQ);
-   if (!tx_ring_)
-       throw std::runtime_error("PortHandlerLoopback: Cannot create inter-thread ring: " + tx_ring_name + " rte_errno:" + std::to_string(rte_errno));
 
-   //----------------------------------------
+   if (!txq_ring_)
+       throw std::runtime_error(
+             "PortHandlerLoopback: Cannot create inter-thread ring: "
+             + txq_ring_name + " rte_errno:" +
+             std::to_string(rte_errno));
+
+   // Select threading model
 
    if (mode=="Loopback") {
-      if (nof_threads == 1) {
-         VTB_LOG(DEBUG) << "PortHandlerLoopback: Inside Loopback mode, Single thread mode"
-               << " VID: " << vid
-               << " RXQ: " << rxqid
-               << " TXQ: " << txqid;
-         // assign tx_ring_ to rx_ring_
-         rx_ring_ = tx_ring_;
-         // start tx_rx_thread_
-         tx_rx_thread_ = std::thread(&PortHandlerLoopback::tx_rx_worker, this);
-         vtb::set_thread_name(tx_rx_thread_, tx_ring_name);
-         // tx_rx_thread_.detach(); // CHECK: results in a segfault
+      if (threading_mode == "EachQ-OneThread") {
+
+         VTB_LOG(DEBUG) 
+            << "PortHandlerLoopback: Inside Loopback mode, Single thread mode"
+            << " VID: " << vid
+            << " RXQ: " << rxqid
+            << " TXQ: " << txqid;
+
+         rxq_ring_ = txq_ring_;
+         txq_rxq_thread_ = std::thread(&PortHandlerLoopback::txq_rxq_worker, this);
+         vtb::set_thread_name(txq_rxq_thread_, txq_ring_name);
       }
-      else if (nof_threads == 2) {
-         VTB_LOG(DEBUG) << "PortHandlerLoopback: Inside Loopback mode, Two thread mode"
-               << " VID: " << vid
-               << " RXQ: " << rxqid
-               << " TXQ: " << txqid;
-         // assign tx_ring_ to rx_ring_
-         rx_ring_ = tx_ring_;
-         // start tx_thread_
-         tx_thread_ = std::thread(&PortHandlerLoopback::tx_worker, this);
-         tx_thread_.detach();
-         // start rx_thread_
-         rx_thread_ = std::thread(&PortHandlerLoopback::rx_worker, this);
-         rx_thread_.detach();
+      else if (threading_mode == "EachQ-TwoThread") {
+
+         VTB_LOG(DEBUG) 
+            << "PortHandlerLoopback: Inside Loopback mode, Two thread mode"
+            << " VID: " << vid
+            << " RXQ: " << rxqid
+            << " TXQ: " << txqid;
+
+         rxq_ring_ = txq_ring_;
+         txq_thread_ = std::thread(&PortHandlerLoopback::txq_worker, this);
+         rxq_thread_ = std::thread(&PortHandlerLoopback::rxq_worker, this);
       }
    }
 }
 
 // --- Worker Thread Definitions ---
 
-void PortHandlerLoopback::tx_worker() {
-   // TODO
-   VTB_LOG(INFO) << "PortHandlerLoopback: tx_worker started";
+void PortHandlerLoopback::txq_worker() {
+
+   VTB_LOG(INFO) 
+      << "PortHandlerLoopback: txq_worker started";
+
    is_running_ = true;
-   while (is_running_) {
-      VTB_LOG(INFO) << "TX running: " << is_running_;
-      sleep(1);
-   }
-   VTB_LOG(INFO) << "PortHandlerLoopback: tx_worker terminated";
+
+   while (is_running_) 
+      dequeue_tx_packets();
+
+   VTB_LOG(INFO) 
+      << "PortHandlerLoopback: txq_worker terminated";
 }
 
-void PortHandlerLoopback::rx_worker() {
-   // TODO
-   VTB_LOG(INFO) << "PortHandlerLoopback: rx_worker started";
+void PortHandlerLoopback::rxq_worker() {
+
+   VTB_LOG(INFO) 
+      << "PortHandlerLoopback: rxq_worker started";
+
    is_running_ = true;
-   while (is_running_) {
-      VTB_LOG(INFO) << "RX running: " << is_running_;
-      sleep(1);
-   }
-   VTB_LOG(INFO) << "PortHandlerLoopback: rx_worker terminated";
+
+   while (is_running_)
+      enqueue_rx_packets();
+
+   VTB_LOG(INFO) 
+      << "PortHandlerLoopback: rxq_worker terminated";
 }
 
-void PortHandlerLoopback::tx_rx_worker() {
-   VTB_LOG(INFO) << "PortHandlerLoopback: Queue worker started for"
-               << " VID: " << vid
-               << " RXQ: " << rxqid
-               << " TXQ: " << txqid;
+void PortHandlerLoopback::txq_rxq_worker() {
+
+   VTB_LOG(INFO) 
+      << "PortHandlerLoopback: Queue worker started for"
+      << " VID: " << vid
+      << " RXQ: " << rxqid
+      << " TXQ: " << txqid;
+
    is_running_ = true;
+
    while (is_running_) {
       dequeue_tx_packets();
       enqueue_rx_packets();
-      // VTB_LOG(INFO) << "PortHandlerLoopback: TX_RX running:"
-      //    << " VID: " << vid
-      //    << " RQID: " << rxqid
-      //    << " TQID: " << txqid;
-      sleep(1);
    }
-   VTB_LOG(INFO) << "PortHandlerLoopback: Queue worker stopped for"
-               << " VID: " << vid
-               << " RXQ: " << rxqid
-               << " TXQ: " << txqid;
-   // TODO this is the right place to cleanup memories
-   // because after the thread is done there is no need for these memories
-   // no need to wait for destructors
-   // 
-   // BUT if the same vid tries to re-connect, then we will not have these
-   // memories, start() needs to be called again
-   // 
-   // So if the plan is to recycle the handler for re-connections then it is
-   // best to destroy the handler and create new ones on re-connection requests
-   // much easier and less prone
-   //
-   // VTB_LOG(DEBUG) << "PortHandlerLoopback: Cleaning memories: "
-   //                << " vid: " << vid
-   //                << " rxqid: " << rxqid
-   //                << " txqid: " << txqid;
-   // if (tx_mbuf_pool_) { rte_mempool_free(tx_mbuf_pool_); tx_mbuf_pool_ = nullptr; }
-   // if (rx_mbuf_pool_) { rte_mempool_free(rx_mbuf_pool_); rx_mbuf_pool_ = nullptr; }
-   // if (tx_ring_) { rte_ring_free(tx_ring_); tx_ring_ = nullptr; }
-   // rx_ring_ = nullptr;
+
+   VTB_LOG(INFO) 
+      << "PortHandlerLoopback: Queue worker stopped for"
+      << " VID: " << vid
+      << " RXQ: " << rxqid
+      << " TXQ: " << txqid;
+
 }
 
 void PortHandlerLoopback::dequeue_tx_packets() {
@@ -173,7 +201,7 @@ void PortHandlerLoopback::dequeue_tx_packets() {
    uint16_t nb_tx = rte_vhost_dequeue_burst(
          vid, 
          VIRTIO_TXQ, 
-         tx_mbuf_pool_, 
+         txq_mbuf_pool_, 
          pkts, 
          PKT_BURST_SZ);
 
@@ -185,7 +213,7 @@ void PortHandlerLoopback::dequeue_tx_packets() {
 	uint16_t sent = 0;
 	while (sent < nb_tx) {
 	    unsigned int pushed = rte_ring_sp_enqueue_burst(
-	        tx_ring_,
+	        txq_ring_,
 	        reinterpret_cast<void**>(&pkts[sent]),
 	        nb_tx - sent,
 	        nullptr);
@@ -193,9 +221,9 @@ void PortHandlerLoopback::dequeue_tx_packets() {
 	    if (sent < nb_tx)
 	        usleep(1);  // backpressure: ring full, let consumer drain
 	}
-	tx_pkt_cnt_ += sent;
+	txq_pkt_cnt_ += sent;
    VTB_LOG(INFO) << "PortHandlerLoopback: Vhost Dequeued: " 
-      << nb_tx << " Ring Enqueued: " << sent ;
+      << nb_tx << " Ring Enqueued: " << txq_pkt_cnt_ ;
 }
 
 void PortHandlerLoopback::extract_tx_metadata() {
@@ -233,7 +261,7 @@ void PortHandlerLoopback::create_rx_vm_metadata() {
 void PortHandlerLoopback::enqueue_rx_packets() {
 	struct rte_mbuf* pkts[PKT_BURST_SZ];
 	unsigned int nb_deq = rte_ring_sc_dequeue_burst(
-	    tx_ring_,
+	    txq_ring_,
 	    reinterpret_cast<void**>(pkts),
 	    PKT_BURST_SZ,
 	    nullptr);
@@ -254,7 +282,7 @@ void PortHandlerLoopback::enqueue_rx_packets() {
 	    }
 	}
 
-	rx_pkt_cnt_ += sent;
+	rxq_pkt_cnt_ += sent;
 
 	if (sent < nb_deq) {
 		VTB_LOG(ERROR) << "PortHandlerLoopback: Enqueue Failed " 
@@ -275,12 +303,12 @@ void PortHandlerLoopback::enqueue_rx_packets() {
 	do {
 	    struct rte_mbuf* pkts[PKT_BURST_SZ];
 	    remaining = rte_ring_sc_dequeue_burst(
-	        tx_ring_, reinterpret_cast<void**>(pkts), PKT_BURST_SZ, nullptr);
+	        txq_ring_, reinterpret_cast<void**>(pkts), PKT_BURST_SZ, nullptr);
 	    for (unsigned int i = 0; i < remaining; i++)
 	        rte_pktmbuf_free(pkts[i]);
 	} while (remaining > 0);
 
-   VTB_LOG(INFO) << "PortHandlerLoopback: No of pkts Enqueued to Guest: " << rx_pkt_cnt_;
+   VTB_LOG(INFO) << "PortHandlerLoopback: No of pkts Enqueued to Guest: " << rxq_pkt_cnt_;
 }
 
 } // namespace vtb
