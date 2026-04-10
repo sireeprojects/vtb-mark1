@@ -51,7 +51,7 @@ int create_client_socket(const std::string& path) {
       close(sock_fd);
       return -1;
    }
-   if (path[0] == '@') {
+   if (path[0] == '\0') {
       // Abstract socket: first byte must be '\0'
       addr.sun_path[0] = '\0';
       std::memcpy(&addr.sun_path[1], path.c_str() + 1, path_len - 1);
@@ -60,8 +60,10 @@ int create_client_socket(const std::string& path) {
       // Size: offset of sun_path + 1 (null) + name_length
       socklen_t len = offsetof(struct sockaddr_un, sun_path) + path_len;
 
-      // TODO: this is a blocking call, how to handle on exit?
-      connect(sock_fd, (struct sockaddr*)&addr, len);
+      if (connect(sock_fd, (struct sockaddr*)&addr, len) == -1) {
+         VTB_LOG(ERROR) << "VtbCommon: Abstract Socket Connect Failed";
+         sock_fd = -1;
+      }
    } else {
       // Standard UNIX socket: Path on filesystem
       std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
@@ -69,7 +71,10 @@ int create_client_socket(const std::string& path) {
       // Remove existing file if it exists (standard cleanup for AF_UNIX)
       unlink(path.c_str());
 
-      connect(sock_fd, (struct sockaddr*)&addr, sizeof(addr));
+      if (connect(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+         VTB_LOG(ERROR) << "VtbCommon: Unix Socket Connect Failed";
+         sock_fd = -1;
+      }
    }
    return sock_fd;
 }

@@ -162,22 +162,34 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
 
 void VhostController::create_client() {
    abstract_sockname_ = config.get_arg<std::string>("--abstract-sockname");
+
    std::string sock_path = std::string(1, '\0') + abstract_sockname_;
+
    VTB_LOG(DEBUG) << "VhostControler: Abstract Socket Name: "
                   << abstract_sockname_;
 
    if (sock_path.size() > 0 && sock_path[0] == '\0') {
-      VTB_LOG(TRACE) << "VhostController: Verified: Abstract socket has first byte is NULL.";
+      VTB_LOG(DEBUG) << "VhostController: Verified: Abstract socket has first byte is NULL.";
    }
+
    abstract_fd_ = vtb::create_client_socket(sock_path);
+
+   VTB_LOG(DEBUG) << "VhostController: Abstract Socket Create: " << abstract_fd_;
 }
 
 bool VhostController::notify_port_controller(int meta, int vid, uint16_t queue_id,
                                              int enable) {
    std::lock_guard<std::mutex> lock(notify_mutex_);
+
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
+
       PortDeviceRingState pdrs = {meta, port_cntr_, vid, queue_id, enable};
-      // vtb::send_packet(abstract_fd_, pdrs);
+
+      if (abstract_fd_ != -1) {
+         vtb::send_packet(abstract_fd_, pdrs);
+      } else {
+         VTB_LOG(ERROR) << "VhostController: Writing to an Uninitialized Abstract socket" << abstract_fd_;
+      }
    } 
    // TODO port controller for emu needs to close their connections
    return false;
