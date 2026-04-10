@@ -15,7 +15,7 @@ def run_frontend(nump, numq):
         print(f"Error: {executable} not found.")
         sys.exit(1)
 
-    cmd = [executable, "-l", "3-4", "--file-prefix=virtio_frontend", "--no-telemetry"]
+    cmd = [executable, "-l 3-4", "--file-prefix=virtio_frontend", "--no-telemetry"]
     for i in range(nump):
         vdev_str = f"net_virtio_user{i},path={socket_path},server=0,queues={numq},mac={base_mac_prefix}{i}"
         cmd.append(f"--vdev={vdev_str}")
@@ -30,6 +30,18 @@ def run_frontend(nump, numq):
     print("Constructed Command:")
     print(" \\\n    ".join(cmd))
     print("-" * 50)
+
+#    try:
+#        # We use subprocess.run, but we catch the KeyboardInterrupt 
+#        # specifically to avoid the "Traceback" spam.
+#        subprocess.run(cmd, check=True)
+#    except KeyboardInterrupt:
+#        # This catch happens when you hit Ctrl+C
+#        print("\n[Terminated by User]")
+#    except subprocess.CalledProcessError as e:
+#        print(f"\nError: Frontend exited with code {e.returncode}")
+#    except Exception as e:
+#        print(f"\nUnexpected error: {e}")
 
     # --- CRITICAL CHANGE START ---
     # We tell Python to ignore SIGINT (Ctrl+C). 
@@ -47,7 +59,7 @@ def run_frontend(nump, numq):
         # Wait for the child to finish. 
         # Even if you hit Ctrl+C, this 'wait' continues until the child exits.
         process.wait()
-
+    
     except Exception as e:
         print(f"\nUnexpected error: {e}")
     finally:
@@ -57,7 +69,7 @@ def run_frontend(nump, numq):
         if is_terminal:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             
-        print("\r[Python script exiting after child cleanup]")
+        print("\r<< Python script exiting after child cleanup >>")
     # --- CRITICAL CHANGE END ---
 
 if __name__ == "__main__":
