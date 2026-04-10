@@ -33,7 +33,7 @@ static void signal_handler(int signum) {
    // rte_eth_dev_stop(0);
 }
 
-static constexpr int num_ports = 8;
+// static constexpr int num_ports = 3;
 
 class CustomFrontend {
 public:
@@ -44,6 +44,10 @@ public:
       // 1. Initialize EAL
       int ret = rte_eal_init(argc, argv);
       if (ret < 0) throw std::runtime_error("EAL Init Failed");
+
+      uint16_t num_ports = rte_eth_dev_count_avail();
+      std::cout << "Number or ports: " << num_ports << std::endl;
+
 
       // 2. Create Mbuf Pool
       mbuf_pool_ = rte_pktmbuf_pool_create(

@@ -98,7 +98,7 @@ void VhostController::start() {
       throw std::runtime_error("VhostController: Driver start failed");
    }
    VTB_LOG(INFO) << "VhostController: Ready @" << path;
-   VTB_LOG(INFO) << "VhostController: waiting for guest...";
+   VTB_LOG(INFO) << "VhostController: Waiting for guest to start...";
 }
 
 //------------------------------------------------------------------
@@ -177,7 +177,7 @@ bool VhostController::notify_port_controller(int meta, int vid, uint16_t queue_i
    std::lock_guard<std::mutex> lock(notify_mutex_);
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
       PortDeviceRingState pdrs = {meta, port_cntr_, vid, queue_id, enable};
-      vtb::send_packet(abstract_fd_, pdrs);
+      // vtb::send_packet(abstract_fd_, pdrs);
    } 
    // TODO port controller for emu needs to close their connections
    return false;
