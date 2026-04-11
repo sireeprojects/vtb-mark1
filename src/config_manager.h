@@ -29,6 +29,7 @@ public:
    void assign_port_data_socket(int port_id, int qp_idx, int socket_fd);
    void assign_port_control_socket(int port_id, int ctl_fd);
    std::tuple<int, uint16_t, uint16_t> get_vhost_qids(int vid, int q_num);
+   bool is_port_ready(int vid);
 
 private:
    ConfigManager();

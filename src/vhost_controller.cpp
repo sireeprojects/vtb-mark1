@@ -127,10 +127,8 @@ int VhostController::cb_vring_state_changed(int vid, uint16_t queue_id,
 void VhostController::on_new_device(int vid) {
    VTB_LOG(INFO) << "VhostController: New port added with VID: " << vid;
 
-   int vring_count = rte_vhost_get_vring_num(vid); // TODO return value is
-                                                   // always 8, does nto reflect
-                                                   // the correct number of
-                                                   // queues for a given port
+   int vring_count = rte_vhost_get_vring_num(vid);
+
    VTB_LOG(DEBUG) << "VhostController: Total Number of queues for " << vid
                   << " is " << vring_count << " for with portnum "
                   << VhostController::port_cntr_;
@@ -139,14 +137,18 @@ void VhostController::on_new_device(int vid) {
    config.set_queue_state(vid, 0, 1);
    config.set_queue_state(vid, 1, 1);
 
-   notify_port_controller(0, vid, 0, 1);
-   notify_port_controller(0, vid, 1, 1);
+   if (config.is_port_ready(vid)) {
+      VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
+   }
+
+   notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, 0, 1);
+   notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, 1, 1);
    VhostController::port_cntr_ += 1;
 }
 
 void VhostController::on_destroy_device(int vid) {
    VTB_LOG(INFO) << "VhostController: Port with VID: " << vid << " removed";
-   notify_port_controller(1, vid, 0, 0);
+   notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, vid, 0, 0);
    config.clear_device(vid);
 }
 
@@ -157,8 +159,12 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
 
    config.set_queue_state(vid, queue_id, enable);
 
+   if (config.is_port_ready(vid)) {
+      VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
+   }
+
    if (queue_id >= 2) // 0 & 1 will be taken care by the notify in new device
-      notify_port_controller(0, vid, queue_id, enable);
+      notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, queue_id, enable);
 }
 
 void VhostController::create_client() {
@@ -178,7 +184,7 @@ void VhostController::create_client() {
    VTB_LOG(DEBUG) << "VhostController: Abstract Socket Create: " << abstract_fd_;
 }
 
-bool VhostController::notify_port_controller(int meta, int vid, uint16_t queue_id,
+bool VhostController::notify_port_controller(VhostNotifyMetadata meta, int vid, uint16_t queue_id,
                                              int enable) {
    std::lock_guard<std::mutex> lock(notify_mutex_);
 
@@ -189,7 +195,7 @@ bool VhostController::notify_port_controller(int meta, int vid, uint16_t queue_i
       if (abstract_fd_ != -1) {
          vtb::send_packet(abstract_fd_, pdrs);
       } else {
-         VTB_LOG(ERROR) << "VhostController: Writing to an Uninitialized Abstract socket" << abstract_fd_;
+         VTB_LOG(ERROR) << "VhostController: Writing to an Uninitialized Abstract socket: " << abstract_fd_;
       }
    } 
    // TODO port controller for emu needs to close their connections

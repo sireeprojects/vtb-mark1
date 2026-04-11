@@ -79,29 +79,34 @@ bool ConfigManager::init(int argc, char** argv) {
 void ConfigManager::init_vhost_device(int port_id, int vid, int nof_pairs) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
+   // create entry if it does not exist
    pvmap_[port_id] = vid; 
    vpmap_[vid] = port_id; 
-
    PortMap& pm = pmap_[vid];
+
    // pm.vd.vid = vid;
    pm.vd.nof_queue_pairs = nof_pairs;
    pm.vd.ready = true;
 
    for (int i = 0; i < nof_pairs; i++) {
+
+      pm.vd.qpid[i] = i;
+
       // Typically in vhost: RX is even (0, 2..), TX is odd (1, 3..)
       pm.vd.qp[i].rxq_id = i * 2;
       pm.vd.qp[i].txq_id = (i * 2) + 1;
       pm.vd.qp[i].rxq_enabled = false;
       pm.vd.qp[i].txq_enabled = false;
 
-      pm.vd.qpid[i] = i;
-
       // Initialize port fds to -1 (not connected yet)
       pm.pd.qp[i].rxq_id = -1;
       pm.pd.qp[i].txq_id = -1;
 
-      // CHECK is ready useful?
+      // TODO
+      // when all the queues of the vid is enabled
+      // make ready = true
       pm.vd.ready = true;
+
       pm.vd.ctlq_id = nof_pairs * 2;  // CHECK
    }
 }
@@ -131,6 +136,47 @@ void ConfigManager::set_queue_state(int port_id, uint16_t vring_id,
          return;
       }
    }
+}
+
+bool ConfigManager::is_port_ready(int vid) {
+    // 1. Locate the PortMap for the given vid
+    auto it = pmap_.find(vid);
+    
+    // If the vid doesn't exist, it can't be ready
+    if (it == pmap_.end()) {
+        return false;
+    }
+
+    const VhostDevice& vd = it->second.vd;
+
+    // 2. Verification check: Must have at least one queue pair to be "ready"
+    // If your logic allows 0 queues to be 'ready', remove this check.
+    if (vd.nof_queue_pairs <= 0) {
+        return false;
+    }
+
+    // 3. Iterate through all active queue pair IDs
+    for (int i = 0; i < vd.nof_queue_pairs; ++i) {
+        int queue_idx = vd.qpid[i];
+
+        // Bounds check for the qp array
+        if (queue_idx < 0 || queue_idx >= MAX_QUEUE_PAIRS) {
+            return false; 
+        }
+
+        // 4. Strict check: Both RX and TX must be enabled for this specific pair
+        bool rx_ready = vd.qp[queue_idx].rxq_enabled;
+        bool tx_ready = vd.qp[queue_idx].txq_enabled;
+
+        if (!rx_ready || !tx_ready) {
+            // If any single RX or TX is false, the "all" condition fails immediately
+            return false;
+        }
+    }
+
+    // If we finished the loop without returning false, 
+    // it means every enabled queue pair is fully operational.
+    return true;
 }
 
 void ConfigManager::assign_port_data_socket(int port_id, int qp_idx,

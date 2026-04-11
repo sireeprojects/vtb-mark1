@@ -81,14 +81,14 @@ void PortControllerLoopback::stop_all_ports_for_vid(int vid) {
 
 void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
    VTB_LOG(DEBUG) << "PortControllerLoopback: Received:"
-               << "  meta: " << pdrs.meta
+               << "  meta: " << static_cast<int>(pdrs.meta)
                << "  device_id: " << pdrs.device_id
                << "  qid: " << pdrs.qid
                << "  enable: " << pdrs.enable;
 
    // device destroyed
    // CHECK if just calling stop() is sufficient
-   if (pdrs.meta == 1) {
+   if (pdrs.meta == vtb::VhostNotifyMetadata::PORT_DOWN) {
       stop_all_ports_for_vid(pdrs.device_id);
       return;
    }
@@ -136,28 +136,3 @@ void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
 }
 
 }  // namespace vtb
-
-/*
-
-// Get a reference to the PortHandler at index 2
-vtb::PortHandler& handler_ref = *port_handler_[2];
-
-// Use it directly
-handler_ref.sendFrame();
-
-// Better, with safety check
-try {
-    vtb::PortHandler& handler_ref = *port_handler_.at(index);
-    handler_ref.sendFrame();
-} catch (const std::out_of_range& e) {
-    // Handle index error
-}
-
-// delete an element
-size_t index_to_remove = 2; // Let's say we want to delete the 3rd element
-
-if (index_to_remove < port_handler_.size()) {
-    port_handler_.erase(port_handler_.begin() + index_to_remove);
-}
-
-*/

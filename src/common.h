@@ -12,6 +12,11 @@ namespace vtb {
 
 static constexpr int MAX_QUEUE_PAIRS = 8;
 
+enum class VhostNotifyMetadata {
+   PORT_UP = 0,
+   PORT_DOWN = 1
+};
+
 struct VhostQueuePair {
    uint16_t rxq_id;
    uint16_t txq_id;
@@ -50,7 +55,7 @@ struct PortDeviceEnables {
 };
 
 struct PortDeviceRingState {
-   int meta;
+   VhostNotifyMetadata meta;
    int port_id;
    int device_id;
    int qid;
