@@ -16,8 +16,10 @@ class PortController {
 public:
    PortController() = default;
    virtual ~PortController() = default;
+
    PortController(const PortController&) = delete;
    PortController& operator=(const PortController&) = delete;
+
    void start();
 
 protected:

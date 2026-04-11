@@ -48,8 +48,6 @@ void PortHandlerLoopback::start() {
 
    // start the appropriate port controller
    auto mode = vtb::ConfigManager::get_instance().get_arg<std::string>("--mode");
-   // auto nof_threads = vtb::ConfigManager::get_instance().get_arg<int>("--txrx-threads");
-
    auto threading_mode = vtb::ConfigManager::get_instance().get_arg<std::string>("--threading-mode");
 
    // "EachQ-TwoThread | EachQ-OneThread | AllQ-TwoThread | AllQ-OneThread",

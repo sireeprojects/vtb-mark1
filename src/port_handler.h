@@ -11,16 +11,7 @@
 #include "config_manager.h"
 
 namespace vtb {
-    static constexpr uint32_t MBUF_POOL_SIZE       = 8191;
-    static constexpr uint32_t MBUF_CACHE_SIZE      = 256;
-    static constexpr uint16_t PKT_BURST_SZ         = 32;
-    static constexpr uint16_t VIRTIO_RXQ           = 0;
-    static constexpr uint16_t VIRTIO_TXQ           = 1;
-    static constexpr uint32_t RING_SIZE            = 4096;  // must be power-of-2
-    static constexpr uint32_t MAX_ENQUEUE_RETRIES  = 1000;
 
-// Abstract base class (interface) for port handling.
-// TX and RX pipelines run on dedicated threads.
 class PortHandler {
 public:
    PortHandler() = default;
@@ -32,7 +23,6 @@ public:
 
    virtual void start() = 0;
    virtual void shutdown() = 0;
-   void set_ids(int devid, int rqid, int tqid);
 
 protected:
    // TX pipeline

@@ -6,7 +6,6 @@
 
 namespace vtb {
 
-// Loopback implementation of the PortHandler interface.
 class PortHandlerLoopback : public PortHandler {
 public:
     PortHandlerLoopback() = default;

@@ -11,6 +11,13 @@
 namespace vtb {
 
 static constexpr int MAX_QUEUE_PAIRS = 8;
+static constexpr uint32_t MBUF_POOL_SIZE       = 8191;
+static constexpr uint32_t MBUF_CACHE_SIZE      = 256;
+static constexpr uint16_t PKT_BURST_SZ         = 32;
+static constexpr uint16_t VIRTIO_RXQ           = 0;
+static constexpr uint16_t VIRTIO_TXQ           = 1;
+static constexpr uint32_t RING_SIZE            = 4096;  // must be power-of-2
+static constexpr uint32_t MAX_ENQUEUE_RETRIES  = 1000;
 
 enum class VhostNotifyMetadata {
    PORT_UP = 0,
