@@ -25,7 +25,7 @@ public:
    bool is_queue_ready(int vid, int qpid);
    void clear_device(int vid);
    void init_vhost_device(int port_id, int vid, int nof_pairs);
-   void set_queue_state(int port_id, uint16_t vring_id, bool enable);
+   void set_queue_state(int vid, uint16_t queue_id, bool enable);
    void assign_port_data_socket(int port_id, int qp_idx, int socket_fd);
    void assign_port_control_socket(int port_id, int ctl_fd);
    std::tuple<int, uint16_t, uint16_t> get_vhost_qids(int vid, int q_num);

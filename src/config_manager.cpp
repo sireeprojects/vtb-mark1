@@ -84,9 +84,7 @@ void ConfigManager::init_vhost_device(int port_id, int vid, int nof_pairs) {
    vpmap_[vid] = port_id; 
    PortMap& pm = pmap_[vid];
 
-   // pm.vd.vid = vid;
    pm.vd.nof_queue_pairs = nof_pairs;
-   pm.vd.ready = true;
 
    for (int i = 0; i < nof_pairs; i++) {
 
@@ -102,36 +100,31 @@ void ConfigManager::init_vhost_device(int port_id, int vid, int nof_pairs) {
       pm.pd.qp[i].rxq_id = -1;
       pm.pd.qp[i].txq_id = -1;
 
-      // TODO
-      // when all the queues of the vid is enabled
-      // make ready = true
-      pm.vd.ready = true;
+      // pm.vd.ready = true; // TODO
 
-      pm.vd.ctlq_id = nof_pairs * 2;  // CHECK
+      pm.vd.ctlq_id = nof_pairs * 2;
    }
 }
 
-void ConfigManager::set_queue_state(int port_id, uint16_t vring_id,
+void ConfigManager::set_queue_state(int vid, uint16_t queue_id,
                                     bool enable) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
-   auto it = pmap_.find(port_id);
+   auto it = pmap_.find(vid);
 
    if (it == pmap_.end()) {
+      VTB_LOG(WARNING) << "ConfigManager: VID=" << vid << " not found";
       return;
    }
 
    VhostDevice& vd = it->second.vd;
 
-   // TODO need to add a check
-   // check if vring_id is less than nof_queue_pairs*2
-
    for (int i = 0; i < vd.nof_queue_pairs; i++) {
-      if (vd.qp[i].rxq_id == vring_id) {
+      if (vd.qp[i].rxq_id == queue_id) {
          vd.qp[i].rxq_enabled = enable;
          return;
       }
-      if (vd.qp[i].txq_id == vring_id) {
+      if (vd.qp[i].txq_id == queue_id) {
          vd.qp[i].txq_enabled = enable;
          return;
       }

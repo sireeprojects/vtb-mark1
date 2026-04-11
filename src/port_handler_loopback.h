@@ -12,6 +12,7 @@ public:
     PortHandlerLoopback() = default;
     virtual ~PortHandlerLoopback() override;
     void start() override;
+    void shutdown() override;
 
 protected:
     void txq_worker() override;

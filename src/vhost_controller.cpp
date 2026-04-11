@@ -14,8 +14,6 @@
 
 namespace vtb {
 
-#define RTE_LOGTYPE_VHDEV RTE_LOGTYPE_USER1
-
 // Static instance pointer (supports one backend per process)
 std::atomic<VhostController*> VhostController::instance_{nullptr};
 
@@ -49,10 +47,6 @@ VhostController::~VhostController() {
       driver_registered_ = false;
    }
    if (eal_initialised_) {
-      // CHECK
-      // rte_eal_cleanup();
-      // fires a segfault if i try to clean the mbufpool and rings manually in
-      // the handler, hence commented
       eal_initialised_ = false;
    }
    instance_.store(nullptr, std::memory_order_release);
@@ -141,8 +135,6 @@ void VhostController::on_new_device(int vid) {
       VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
    }
 
-   notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, 0, 1);
-   notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, 1, 1);
    VhostController::port_cntr_ += 1;
 }
 
@@ -161,10 +153,8 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
 
    if (config.is_port_ready(vid)) {
       VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
+      notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, 0, 0);
    }
-
-   if (queue_id >= 2) // 0 & 1 will be taken care by the notify in new device
-      notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, queue_id, enable);
 }
 
 void VhostController::create_client() {

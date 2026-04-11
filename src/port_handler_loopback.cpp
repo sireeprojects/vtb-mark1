@@ -36,6 +36,14 @@ PortHandlerLoopback::~PortHandlerLoopback() {
    rxq_ring_ = nullptr;
 }
 
+void PortHandlerLoopback::shutdown() {
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Stopped called for"
+               << " VID: " << vid
+               << " RXQ: " << rxqid
+               << " TXQ: " << txqid;
+   is_running_ = false;
+}
+
 void PortHandlerLoopback::start() {
 
    // start the appropriate port controller

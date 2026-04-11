@@ -30,11 +30,8 @@ public:
    PortHandler(const PortHandler&) = delete;
    PortHandler& operator=(const PortHandler&) = delete;
 
-   // Starts both transmit and receive threads.
    virtual void start() = 0;
-
-   // Signals both threads to stop.
-   void stop();
+   virtual void shutdown() = 0;
    void set_ids(int devid, int rqid, int tqid);
 
 protected:
