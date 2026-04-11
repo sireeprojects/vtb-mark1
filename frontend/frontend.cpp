@@ -46,8 +46,6 @@ public:
          MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
       if (!mbuf_pool_) throw std::runtime_error("Mbuf Pool Allocation Failed");
 
-      std::cout << "Number of ports: " << nb_ports << std::endl;
-
       RTE_ETH_FOREACH_DEV(port_id) {
          struct rte_eth_dev_info dev_info;
          rte_eth_dev_info_get(port_id, &dev_info);

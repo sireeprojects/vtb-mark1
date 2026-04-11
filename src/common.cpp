@@ -109,7 +109,7 @@ int create_server_socket(const std::string& path) {
 
    // 2. Handle Abstract vs. Path-based
    // Convention: Using '@' to denote an abstract socket in the input string
-   if (path[0] == '@') {
+   if (path[0] == '\0') {
       // Abstract socket: first byte must be '\0'
       addr.sun_path[0] = '\0';
       std::memcpy(&addr.sun_path[1], path.c_str() + 1, path_len - 1);

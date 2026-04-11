@@ -70,7 +70,7 @@ def run_frontend(nump, numq):
         if is_terminal:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             
-        print("\r<< Python script exiting after child cleanup >>")
+        print("\r\n[Python script exiting after child cleanup]")
     # --- CRITICAL CHANGE END ---
 
 if __name__ == "__main__":
