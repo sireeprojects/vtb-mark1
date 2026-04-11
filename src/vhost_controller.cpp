@@ -49,6 +49,7 @@ VhostController::~VhostController() {
       driver_registered_ = false;
    }
    if (eal_initialised_) {
+      // CHECK
       // rte_eal_cleanup();
       // fires a segfault if i try to clean the mbufpool and rings manually in
       // the handler, hence commented
