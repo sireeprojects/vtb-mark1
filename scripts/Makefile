@@ -70,7 +70,7 @@ run:
 			--huge-unlink \
 			-- \
 			--mode Loopback \
-			--verbosity TRACE \
+			--verbosity Info \
 			--txrx-threads 1 \
 			--threading-mode EachQ-OneThread \
 			--abstract-sockname absockname \

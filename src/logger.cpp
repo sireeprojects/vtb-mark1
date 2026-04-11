@@ -26,7 +26,8 @@ void Logger::init(const std::string& filename, LogLevel level, size_t max_file_s
    max_file_size_ = max_file_size_mb * 1024 * 1024;
 
    if (!log_filename_.empty()) {
-      file_.open(log_filename_, std::ios::out | std::ios::app);
+      // overwrite log
+      file_.open(log_filename_, std::ios::out);
       if (file_.is_open()) {
          current_file_size_ = std::filesystem::file_size(log_filename_);
       }
@@ -94,9 +95,9 @@ Logger::~Logger() {
 // Function to return the uppercase name of the LogLevel
 std::string_view Logger::get_level_name(LogLevel level) {
     switch (level) {
-        case LogLevel::FATAL:   return "[..FATAL] ";
-        case LogLevel::ERROR:   return "[..ERROR] ";
-        case LogLevel::WARNING: return "[WARNING] ";
+        case LogLevel::FATAL:   return "[..FATAL] *** ";
+        case LogLevel::ERROR:   return "[..ERROR] *** ";
+        case LogLevel::WARNING: return "[WARNING] *** ";
         case LogLevel::INFO:    return "[...INFO] ";
         case LogLevel::DEBUG:   return "[..DEBUG] ";
         case LogLevel::TRACE:   return "[..TRACE] ";

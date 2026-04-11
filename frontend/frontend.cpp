@@ -25,6 +25,7 @@ static constexpr uint32_t MAX_ENQUEUE_RETRIES = 1000;
 static volatile bool force_quit = false;
 static void signal_handler(int signum) {
    (void)signum;
+   std::cout << "[FRONTEND] *** <User Pressed Ctrl+C>" << std::endl;
    force_quit = true;
 }
 
@@ -55,8 +56,8 @@ public:
          uint16_t nb_rx_q = dev_info.max_rx_queues;
          uint16_t nb_tx_q = dev_info.max_tx_queues;
 
-         printf("Initializing Port %u with %u RX and %u TX queues\n", port_id,
-            nb_rx_q, nb_tx_q);
+         // printf("Initializing Port %u with %u RX and %u TX queues\n", port_id,
+            // nb_rx_q, nb_tx_q);
 
          // Now use these values to configure the port
          struct rte_eth_conf port_conf = {0};
@@ -73,13 +74,16 @@ public:
          if (rte_eth_dev_start(port_id) < 0)
             throw std::runtime_error("Failed to start port");
 
-         std::cout << ">>> Port " << port_id << " initialized and started."
+         std::cout << "[FRONTEND] " 
+                   << "Port " << port_id 
+                   << " Initialized and Started with "
+                   << nb_rx_q << " queues"
                    << std::endl;
       }
    }
 
    void run() {
-      std::cout << ">>> Traffic loop active" << std::endl;
+      // std::cout << ">>> Traffic loop active" << std::endl;
       uint16_t port_id = 0;
 
       while (!force_quit) {
@@ -90,10 +94,14 @@ public:
       }
 
       RTE_ETH_FOREACH_DEV(port_id) {
-         std::cout << "Stopping Device: " << port_id << std::endl;
+         // std::cout << "Stopping Device: " << port_id << std::endl;
          rte_eth_dev_stop(port_id);
-         std::cout << "Closing Device: " << port_id << std::endl;
+         // std::cout << "Closing Device: " << port_id << std::endl;
          rte_eth_dev_close(port_id);
+         std::cout << "[FRONTEND] " 
+                   << "Port " << port_id 
+                   << " stopped and closed"
+                   << std::endl;
       }
       sleep(1);
       rte_eal_cleanup();

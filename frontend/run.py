@@ -15,7 +15,8 @@ def run_frontend(nump, numq):
         print(f"Error: {executable} not found.")
         sys.exit(1)
 
-    cmd = [executable, "-l 3-4", "--file-prefix=virtio_frontend", "--no-telemetry"]
+    cmd = [executable, "-l 3-4", "--file-prefix=virtio_frontend",
+                       "--no-telemetry", "--log-level=lib.eal:3"]
     for i in range(nump):
         vdev_str = f"net_virtio_user{i},path={socket_path},server=0,queues={numq},mac={base_mac_prefix}{i}"
         cmd.append(f"--vdev={vdev_str}")
@@ -27,9 +28,9 @@ def run_frontend(nump, numq):
         new_settings = termios.tcgetattr(fd)
         new_settings[3] = new_settings[3] & ~termios.ECHOCTL
 
-    print("Constructed Command:")
-    print(" \\\n    ".join(cmd))
-    print("-" * 50)
+    # print("Constructed Command:")
+    # print(" \\\n    ".join(cmd))
+    # print("-" * 50)
 
 #    try:
 #        # We use subprocess.run, but we catch the KeyboardInterrupt 
