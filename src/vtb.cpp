@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 }
 
 static void signal_handler(int) {
-   VTB_LOG(FATAL) << "<User Pressed Ctrl+C>";
+   VTB_LOG(FATAL) << "Process interrupted by user (Ctrl+C)";
    keep_running = true;
 }
 

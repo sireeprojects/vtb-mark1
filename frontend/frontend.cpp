@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "messenger.h"
+
 static constexpr uint32_t MBUF_POOL_SIZE = 8191;
 static constexpr uint32_t MBUF_CACHE_SIZE = 256;
 static constexpr uint16_t PKT_BURST_SZ = 32;
@@ -25,21 +27,24 @@ static constexpr uint32_t MAX_ENQUEUE_RETRIES = 1000;
 static volatile bool force_quit = false;
 static void signal_handler(int signum) {
    (void)signum;
-   std::cout << "[FRONTEND] *** <User Pressed Ctrl+C>" << std::endl;
+   VTB_LOG(FATAL) << "Process interrupted by user (Ctrl+C)";
    force_quit = true;
 }
 
 class CustomFrontend {
 public:
    CustomFrontend(int argc, char** argv) {
-      std::cout << "DPDK Version: " << rte_version() << std::endl;
+      // setup logger with a default verbosity
+      vtb::Logger::get_instance().init("run.log", vtb::LogLevel::TRACE);
+
+      VTB_LOG(INFO) << "DPDK Version: " << rte_version();
 
       // Initialize EAL
       int ret = rte_eal_init(argc, argv);
       if (ret < 0) throw std::runtime_error("EAL Init Failed");
 
       uint16_t port_id;
-      uint16_t nb_ports = rte_eth_dev_count_avail();
+      // uint16_t nb_ports = rte_eth_dev_count_avail();
 
       // Create Mbuf Pool
       mbuf_pool_ = rte_pktmbuf_pool_create("FRONTEND_POOL", MBUF_POOL_SIZE,
@@ -58,7 +63,7 @@ public:
             // nb_rx_q, nb_tx_q);
 
          // Now use these values to configure the port
-         struct rte_eth_conf port_conf = {0};
+         struct rte_eth_conf port_conf = {};
          rte_eth_dev_configure(port_id, nb_rx_q, nb_tx_q, &port_conf);
 
          for (int i = 0; i < nb_rx_q; i++) {
@@ -72,16 +77,14 @@ public:
          if (rte_eth_dev_start(port_id) < 0)
             throw std::runtime_error("Failed to start port");
 
-         std::cout << "[FRONTEND] " 
-                   << "Port " << port_id 
+         VTB_LOG(INFO) << "Port " << port_id 
                    << " Initialized and Started with "
-                   << nb_rx_q << " queues"
-                   << std::endl;
+                   << nb_rx_q << " queues";
       }
    }
 
    void run() {
-      // std::cout << ">>> Traffic loop active" << std::endl;
+      VTB_LOG(INFO) << "Traffic loop active";
       uint16_t port_id = 0;
 
       while (!force_quit) {
@@ -92,14 +95,12 @@ public:
       }
 
       RTE_ETH_FOREACH_DEV(port_id) {
-         // std::cout << "Stopping Device: " << port_id << std::endl;
+         VTB_LOG(INFO) << "Stopping Device: " << port_id;
          rte_eth_dev_stop(port_id);
-         // std::cout << "Closing Device: " << port_id << std::endl;
+         VTB_LOG(INFO) << "Closing Device: " << port_id;
          rte_eth_dev_close(port_id);
-         std::cout << "[FRONTEND] " 
-                   << "Port " << port_id 
-                   << " stopped and closed"
-                   << std::endl;
+         VTB_LOG(INFO) << "Port " << port_id 
+                   << " stopped and closed";
       }
       rte_eal_cleanup();
    }
@@ -132,7 +133,7 @@ private:
 
       uint16_t sent = rte_eth_tx_burst(port_id, 0, pkts, PKT_BURST_SZ);
       if (sent > 0) {
-         std::cout << "[FRONTEND] Sent " << sent << " packets." << std::endl;
+         std::cout << "Sent " << sent << " packets." << std::endl;
       }
 
       // Free unsent packets
@@ -146,7 +147,7 @@ private:
       struct rte_mbuf* pkts[PKT_BURST_SZ];
       uint16_t rcved = rte_eth_rx_burst(port_id, 0, pkts, PKT_BURST_SZ);
       if (rcved > 0) {
-         std::cout << "[FRONTEND] Received " << rcved
+         std::cout << "Received " << rcved
                    << " packets back from loopback." << std::endl;
          for (uint16_t i = 0; i < rcved; i++) rte_pktmbuf_free(pkts[i]);
       }
