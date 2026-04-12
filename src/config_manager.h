@@ -32,6 +32,8 @@ public:
    void assign_port_data_socket(int port_id, int qp_idx, int socket_fd);
    void assign_port_control_socket(int port_id, int ctl_fd);
 
+   const std::map<int, PortMap>& get_pmap() const;
+
 private:
    ConfigManager();
    ~ConfigManager();

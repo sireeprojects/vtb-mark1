@@ -305,4 +305,8 @@ void ConfigManager::clear_device(int vid) {
    }
 }
 
+const std::map<int, PortMap>& ConfigManager::get_pmap() const {
+   return pmap_;
+}
+
 }  // namespace vtb

@@ -13,10 +13,15 @@ public:
     void start() override;
     void shutdown() override;
 
+    ThreadMode string_to_thread_mode(std::string_view mode_str);
+    void dispatch(const VidContext&, const std::string& mode);
+
 protected:
     void txq_worker() override;
     void rxq_worker() override;
     void txq_rxq_worker() override;
+    void worker(VidContext ctx) override;
+    void launch(VidContext ctx) override;
 
     void dequeue_tx_packets() override;
     void extract_tx_metadata() override;

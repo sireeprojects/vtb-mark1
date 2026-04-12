@@ -12,6 +12,18 @@
 
 namespace vtb {
 
+enum class ThreadMode {
+   EachQTwoThread,
+   EachQOneThread,
+   AllQTwoThread,
+   AllQOneThread
+};
+
+struct VidContext {
+   int vid;
+   std::vector<int> qids;
+};
+
 class PortHandler {
 public:
    PortHandler() = default;
@@ -25,6 +37,8 @@ public:
    virtual void shutdown() = 0;
 
 protected:
+   std::vector<int> get_queue_ids_by_vid(int vid);
+
    // TX pipeline
    virtual void dequeue_tx_packets() = 0;
    virtual void extract_tx_metadata() = 0;
@@ -45,6 +59,8 @@ protected:
    virtual void txq_worker() = 0;
    virtual void rxq_worker() = 0;
    virtual void txq_rxq_worker() = 0;
+   virtual void worker(VidContext ctx) = 0;
+   virtual void launch(VidContext ctx) = 0;
 
    std::atomic<bool> is_running_{false};
 
