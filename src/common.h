@@ -63,10 +63,8 @@ struct PortDeviceEnables {
 
 struct PortDeviceRingState {
    VhostNotifyMetadata meta;
-   int port_id;
-   int device_id;
-   int qid;
-   int enable;
+   int pid;
+   int vid;
 };
 
 class PortController;

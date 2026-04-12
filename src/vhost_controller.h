@@ -46,7 +46,7 @@ private:
    static int cb_new_device(int vid);
    static void cb_destroy_device(int vid);
    static int cb_vring_state_changed(int vid, uint16_t queue_id, int enable);
-   bool notify_port_controller(VhostNotifyMetadata meta, int vid, uint16_t queue_id, int enable);
+   bool notify_port_controller(VhostNotifyMetadata meta, int pid, int vid);
    void create_client();
 
    std::string socket_path_{};

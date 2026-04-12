@@ -140,8 +140,8 @@ void VhostController::on_new_device(int vid) {
 
 void VhostController::on_destroy_device(int vid) {
    VTB_LOG(INFO) << "VhostController: Port with VID: " << vid << " removed";
-   notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, vid, 0, 0);
-   config.clear_device(vid);
+   notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, port_cntr_, vid);
+   // config.clear_device(vid);
 }
 
 void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
@@ -153,7 +153,7 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
 
    if (config.is_port_ready(vid)) {
       VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
-      notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, vid, 0, 0);
+      notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, port_cntr_, vid);
    }
 }
 
@@ -174,13 +174,12 @@ void VhostController::create_client() {
    VTB_LOG(DEBUG) << "VhostController: Abstract Socket Create: " << abstract_fd_;
 }
 
-bool VhostController::notify_port_controller(VhostNotifyMetadata meta, int vid, uint16_t queue_id,
-                                             int enable) {
+bool VhostController::notify_port_controller(VhostNotifyMetadata meta, int pid, int vid) {
    std::lock_guard<std::mutex> lock(notify_mutex_);
 
    if (mode_ == "Loopback" || mode_ == "Back2Back") {
 
-      PortDeviceRingState pdrs = {meta, port_cntr_, vid, queue_id, enable};
+      PortDeviceRingState pdrs = {meta, pid, vid};
 
       if (abstract_fd_ != -1) {
          vtb::send_packet(abstract_fd_, pdrs);

@@ -101,7 +101,6 @@ public:
                    << " stopped and closed"
                    << std::endl;
       }
-      sleep(1);
       rte_eal_cleanup();
    }
 

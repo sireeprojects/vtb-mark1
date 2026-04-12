@@ -52,6 +52,8 @@ int main(int argc, char** argv) {
 
    rte_eal_mp_wait_lcore();
 
+   config.print_portmap();
+
    vtb::restore_echoctl();
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";
    return 0;

@@ -30,10 +30,7 @@ private:
    int abstract_fd_{-1};
    int epoll_fd{-1};
    struct epoll_event ev, events[MAX_EVENTS];
-   PortDeviceRingState pdrs_{};
    bool ready_{false};
-
-   std::unordered_map<int, std::vector<int>> pmap_;
 };
 
 }  // namespace vtb

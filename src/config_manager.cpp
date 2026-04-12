@@ -113,7 +113,8 @@ void ConfigManager::set_queue_state(int vid, uint16_t queue_id,
    auto it = pmap_.find(vid);
 
    if (it == pmap_.end()) {
-      VTB_LOG(WARNING) << "ConfigManager: VID=" << vid << " not found";
+      // CHECK and revert
+      // VTB_LOG(WARNING) << "ConfigManager: VID=" << vid << " not found";
       return;
    }
 
