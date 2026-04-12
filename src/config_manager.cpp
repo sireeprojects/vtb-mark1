@@ -263,32 +263,6 @@ void ConfigManager::print_portmap() {
    }
 }
 
-std::tuple<int, uint16_t, uint16_t> ConfigManager::get_vhost_qids(int vid,
-                                                                  int q_num) {
-   std::lock_guard<std::mutex> lock(pmap_mutex_);
-
-   auto it = pmap_.find(vid);
-   if (it == pmap_.end()) {
-      // Return -1 for vid to indicate the port was not found
-      return {-1, 0, 0};
-   }
-
-   const VhostDevice& vd = it->second.vd;
-
-   // Ensure the requested queue number is within the valid range for this
-   // device
-   if (q_num < 0 || q_num >= vd.nof_queue_pairs) {
-      return {-1, 0, 0};
-   }
-
-   // Return the rxq_id and txq_id of the specific queue pair index (q_num)
-   // for the Vhost side of the particular port.
-   uint16_t rxq = vd.qp[q_num].rxq_id;
-   uint16_t txq = vd.qp[q_num].txq_id;
-
-   return {vid, rxq, txq};
-}
-
 bool ConfigManager::is_queue_ready(int vid, int qpid) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
 
