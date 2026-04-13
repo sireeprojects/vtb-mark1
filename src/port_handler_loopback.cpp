@@ -68,30 +68,53 @@ void PortHandlerLoopback::create_resources(const std::vector<int>& qids) {
 }
 
 void PortHandlerLoopback::worker(VidContext ctx) {
-   [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
-   std::vector<int>qids = ctx.qids;
+   int vid = ctx.vid;
+   std::vector<int> qids = ctx.qids;
 
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: Worker Queue ids: " << format_qids(ctx.qids);
+   // create_resources(qids);
+   is_running_ = true;
 
-   create_resources(qids);
-
-   is_running_ = true;// CHECK why should i do this here?
-                      
-   size_t half = qids.size() / 2;
    while (is_running_) {
-      // Process TX Half
-      for (size_t i = 0; i < half; ++i) {
-         int qid = qids[i];
-         dequeue_tx_packets(vid, qid, mempools_[qid], rings_[qid]);
+      for (int qid : qids) {
+         if (qid % 2 != 0) {
+            // It's a Transmit Queue (Odd)
+            dequeue_tx_packets(vid, qid, mempools_[qid], rings_[qid]);
+         } else {
+            // It's a Receive Queue (Even)
+            // It uses the ring from its associated TX partner (qid + 1)
+            enqueue_rx_packets(vid, qid, rings_[qid + 1]);
+         }
       }
-      // Process RX Half
-      for (size_t i = half; i < qids.size(); ++i) {
-         int qid = qids[i];
-         enqueue_rx_packets(vid, qid, rings_[qid + 1]);
-      }
+      // Consider a tiny sched_yield() or small usleep if qids is small
+      // to prevent 100% CPU spinning on empty queues
    }
-
 }
+
+// void PortHandlerLoopback::worker(VidContext ctx) {
+//    [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
+//    std::vector<int>qids = ctx.qids;
+// 
+//    VTB_LOG(DEBUG) << "PortHandlerLoopback: Worker Queue ids: " << format_qids(ctx.qids);
+// 
+//    create_resources(qids);
+// 
+//    is_running_ = true;// CHECK why should i do this here?
+//                       
+//    size_t half = qids.size() / 2;
+//    while (is_running_) {
+//       // Process TX Half
+//       for (size_t i = 0; i < half; ++i) {
+//          int qid = qids[i];
+//          dequeue_tx_packets(vid, qid, mempools_[qid], rings_[qid]);
+//       }
+//       // Process RX Half
+//       for (size_t i = half; i < qids.size(); ++i) {
+//          int qid = qids[i];
+//          enqueue_rx_packets(vid, qid, rings_[qid + 1]);
+//       }
+//    }
+// 
+// }
 
 // void PortHandlerLoopback::worker(VidContext ctx) {
 //    [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
@@ -218,13 +241,16 @@ void PortHandlerLoopback::start([[maybe_unused]] int pid, int vid) {
    VTB_LOG(DEBUG) << "PortHandlerLoopback: Start called with" 
                   << " vid: "<< vid
                   << " pid: "<< pid;
-   auto threading_mode = config.get_arg<std::string>("--threading-mode");
 
    VidContext ctx = {};
    ctx.vid = vid;
    ctx.qids = get_queue_ids_by_vid(vid);
 
+   create_resources(ctx.qids);
+
    VTB_LOG(DEBUG) << "PortHandlerLoopback: Processing Queue ids: " << format_qids(ctx.qids);
+
+   auto threading_mode = config.get_arg<std::string>("--threading-mode");
 
    dispatch(ctx, threading_mode);
 }
