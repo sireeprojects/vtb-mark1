@@ -18,6 +18,49 @@ Logger& Logger::get_instance() {
 Logger::Logger() : max_file_size_(100 * 1024 * 1024) {
 }
 
+void Logger::emergency_flush() {
+   // Use try_lock. If we can't get the lock, the thread that crashed
+   // might already own it, so we proceed anyway to try and save data.
+   std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
+
+   if (!active_buffer_.empty()) {
+      if (file_.is_open()) {
+         file_ << "--- EMERGENCY FLUSH START ---\n";
+         file_ << active_buffer_;
+         file_ << "\n--- EMERGENCY FLUSH END ---\n";
+         file_.flush(); // Force OS to write to disk
+      }
+      // Also dump to stderr so you see it in the console
+      fprintf(stderr, "%s", active_buffer_.c_str());
+
+      active_buffer_.clear();
+   }
+}
+
+void Logger::direct_append(const std::string& msg) {
+   std::lock_guard<std::mutex> lock(mutex_);
+   active_buffer_ += msg;
+}
+
+// void Logger::emergency_flush() {
+//    std::string panic_data;
+//    {
+//       // Try to lock, but don't hang forever if the crash happened 
+//       // while the background thread held the lock.
+//       std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
+//       panic_data.swap(active_buffer_);
+//    }
+// 
+//    if (!panic_data.empty()) {
+//       if (file_.is_open()) {
+//          file_ << "--- EMERGENCY FLUSH ---\n";
+//          file_ << panic_data << std::flush;
+//       }
+//       // Use write() or direct std::cerr to bypass any stdout buffering
+//       std::cerr << panic_data << std::flush;
+//    }
+// }
+
 void Logger::init(const std::string& filename, LogLevel level, size_t max_file_size_mb) {
    if (initialized_.exchange(true)) return;
 

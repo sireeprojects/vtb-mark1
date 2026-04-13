@@ -11,6 +11,12 @@ SRC_DIR  := $(PROJ_ROOT)/src
 OBJ_DIR  := obj
 BIN_DIR  := .
 
+
+# -g: Adds debug symbols
+# -rdynamic: Exports symbols to the dynamic table so backtrace can read names
+CXXFLAGS += -g -rdynamic
+LDFLAGS += -rdynamic
+
 # --- Target ---
 TARGET   := $(BIN_DIR)/vtb
 
@@ -62,9 +68,13 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 clean:
 	rm -rf $(OBJ_DIR) $(TARGET) *.log
 
+purge:
+	rm -rf /tmp/vhost-user.sock
+	rm -rf /dev/hugepages/v*
+
 # Run command for DPDK environment
 run:
-	@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
+	-@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
 			--log-level=lib.vhost.config:3 \
 			--log-level=lib.eal:3 \
 			--log-level=lib.ring:8 \
@@ -73,7 +83,7 @@ run:
 			-- \
 			--mode Loopback \
 			--verbosity Trace \
-			--threading-mode EachQ-OneThread \
+			--threading-mode AllQ-TwoThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
 			--port-control-sockname controlsockname \

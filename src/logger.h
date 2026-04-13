@@ -34,6 +34,9 @@ public:
    // Optimized to take string by rvalue to avoid deep copies
    void log(LogLevel msg_level, std::string&& message);
 
+   void emergency_flush();
+   void direct_append(const std::string& msg);
+
    ~Logger();
 
 private:

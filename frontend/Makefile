@@ -66,6 +66,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 clean:
 	rm -rf $(OBJ_DIR) $(TARGET) *.log
 
+purge:
+	rm -rf /tmp/vhost-user.sock
+	rm -rf /dev/hugepages/v*
+
 # Run command for DPDK environment
 run:
 	@python3 run.py $(NUMP) $(NUMQ)

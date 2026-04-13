@@ -67,6 +67,53 @@ void PortHandlerLoopback::create_resources(const std::vector<int>& qids) {
    }
 }
 
+void PortHandlerLoopback::worker(VidContext ctx) {
+   [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
+   std::vector<int>qids = ctx.qids;
+
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Worker Queue ids: " << format_qids(ctx.qids);
+
+   create_resources(qids);
+
+   is_running_ = true;// CHECK why should i do this here?
+                      
+   size_t half = qids.size() / 2;
+   while (is_running_) {
+      // Process TX Half
+      for (size_t i = 0; i < half; ++i) {
+         int qid = qids[i];
+         dequeue_tx_packets(vid, qid, mempools_[qid], rings_[qid]);
+      }
+      // Process RX Half
+      for (size_t i = half; i < qids.size(); ++i) {
+         int qid = qids[i];
+         enqueue_rx_packets(vid, qid, rings_[qid + 1]);
+      }
+   }
+
+}
+
+// void PortHandlerLoopback::worker(VidContext ctx) {
+//    [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
+//    std::vector<int>qids = ctx.qids;
+// 
+//    VTB_LOG(DEBUG) << "PortHandlerLoopback: Worker Queue ids: " << format_qids(ctx.qids);
+// 
+//    create_resources(qids);
+// 
+//    is_running_ = true;// CHECK why should i do this here?
+// 
+//    while (is_running_) {
+//       for (unsigned int id=0; id<qids.size(); id++) {
+//          if (id & 1) {
+//             dequeue_tx_packets(vid, qids[id], mempools_[id], rings_[id]);
+//          } else {
+//             enqueue_rx_packets(vid, qids[id], rings_[id-1]);
+//          }
+//       }
+//    }
+// }
+
 void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid, struct rte_mempool* mpool, struct rte_ring* ring) {
    struct rte_mbuf* pkts[vtb::PKT_BURST_SZ];
    uint16_t nb_tx = rte_vhost_dequeue_burst(
@@ -180,29 +227,6 @@ void PortHandlerLoopback::start([[maybe_unused]] int pid, int vid) {
    VTB_LOG(DEBUG) << "PortHandlerLoopback: Processing Queue ids: " << format_qids(ctx.qids);
 
    dispatch(ctx, threading_mode);
-}
-
-void PortHandlerLoopback::worker(VidContext ctx) {
-   [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
-   std::vector<int>qids = ctx.qids;
-
-   VTB_LOG(DEBUG) << "PortHandlerLoopback: Worker Queue ids: " << format_qids(ctx.qids);
-
-   create_resources(qids);
-
-   is_running_ = true;// CHECK why should i do this here?
-
-   while (is_running_) {
-      // VTB_LOG(DEBUG) << "PortHandlerLoopback:Running";
-      for (unsigned int id=0; id<qids.size(); id++) {
-         if (id & 1) {
-            // dequeue_tx_packets(vid, qids[id], mempools_[id], rings_[id]);
-         } else {
-            // enqueue_rx_packets(vid, qids[id], rings_[id]);
-         }
-      }
-   }
-
 }
 
 void PortHandlerLoopback::launch(VidContext ctx) {

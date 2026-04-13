@@ -171,7 +171,7 @@ void restore_echoctl() {
 
 void graceful_exit() {
     VTB_LOG(FATAL) << "A fatal error occurred. Shutting down gracefully...";
-    std::exit(1);
+    // std::exit(1);
 }
 
 bool is_even(int n) {
