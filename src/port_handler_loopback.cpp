@@ -20,14 +20,22 @@ void PortHandlerLoopback::shutdown() {
          t.join();
       }
    }
+   worker_threads_.clear();
 
    // free mempools and rings used by threads
    for (auto const& [qid, ptr] : mempools_) {
-      if (ptr) rte_mempool_free(ptr);
+      VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: mempool free: " << qid;
+      if (ptr) 
+         rte_mempool_free(ptr);
    }
+   mempools_.clear();
+
    for (auto const& [qid, ptr] : rings_) {
-      if (ptr) rte_ring_free(ptr);
+      VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: ring free: " << qid;
+      if (ptr) 
+         rte_ring_free(ptr);
    }
+   rings_.clear();
 }
 
 void PortHandlerLoopback::create_resources(const std::vector<int>& qids) {
@@ -160,27 +168,37 @@ ThreadMode PortHandlerLoopback::string_to_thread_mode(std::string_view mode_str)
 }
 
 void PortHandlerLoopback::start([[maybe_unused]] int pid, int vid) {
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Start called with" 
+                  << " vid: "<< vid
+                  << " pid: "<< pid;
    auto threading_mode = config.get_arg<std::string>("--threading-mode");
 
    VidContext ctx = {};
    ctx.vid = vid;
    ctx.qids = get_queue_ids_by_vid(vid);
 
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Processing Queue ids: " << format_qids(ctx.qids);
+
    dispatch(ctx, threading_mode);
 }
 
 void PortHandlerLoopback::worker(VidContext ctx) {
-   int vid = ctx.vid;
+   [[maybe_unused]] int vid = ctx.vid; // TODO remove unused
    std::vector<int>qids = ctx.qids;
+
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Worker Queue ids: " << format_qids(ctx.qids);
 
    create_resources(qids);
 
+   is_running_ = true;// CHECK why should i do this here?
+
    while (is_running_) {
+      // VTB_LOG(DEBUG) << "PortHandlerLoopback:Running";
       for (unsigned int id=0; id<qids.size(); id++) {
          if (id & 1) {
-            dequeue_tx_packets(vid, qids[id], mempools_[id], rings_[id]);
+            // dequeue_tx_packets(vid, qids[id], mempools_[id], rings_[id]);
          } else {
-            enqueue_rx_packets(vid, qids[id], rings_[id]);
+            // enqueue_rx_packets(vid, qids[id], rings_[id]);
          }
       }
    }
@@ -192,13 +210,17 @@ void PortHandlerLoopback::launch(VidContext ctx) {
    std::thread& last_thread = worker_threads_.back();
    std::string worker_name = "WorkerV" + std::to_string(ctx.vid);
    vtb::set_thread_name(last_thread, worker_name);
+   sleep(1);
 }
 
 void PortHandlerLoopback::dispatch(const VidContext& context, const std::string& mode_str) {
    int vid = context.vid;
    std::vector<int>qids = context.qids;
 
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Dispatching Queue ids: " << format_qids(qids);
+
    ThreadMode mode = string_to_thread_mode(mode_str);
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Dispatch Threading mode: " << mode_str;
 
    switch (mode) {
       case ThreadMode::EachQTwoThread: // indepented threads
@@ -208,7 +230,9 @@ void PortHandlerLoopback::dispatch(const VidContext& context, const std::string&
          break;
 
       case ThreadMode::EachQOneThread: // on thread per tx rx pair
+         VTB_LOG(DEBUG) << "PortHandlerLoopback: EachQOneThread quid size: " <<qids.size();
          for (int id=0; id<static_cast<int>(qids.size()); id+=2) {
+            VTB_LOG(DEBUG) << "PortHandlerLoopback: EachQOneThread:Launching";
             launch({vid, {id, id+1}});
          }
          break;

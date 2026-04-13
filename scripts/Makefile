@@ -67,10 +67,12 @@ run:
 	@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
 			--log-level=lib.vhost.config:3 \
 			--log-level=lib.eal:3 \
+			--log-level=lib.ring:8 \
+			--log-level=lib.mempool:8 \
 			--huge-unlink \
 			-- \
 			--mode Loopback \
-			--verbosity TRACE \
+			--verbosity Trace \
 			--txrx-threads 1 \
 			--threading-mode EachQ-OneThread \
 			--abstract-sockname absockname \

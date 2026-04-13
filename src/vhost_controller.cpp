@@ -131,8 +131,11 @@ void VhostController::on_new_device(int vid) {
    config.set_queue_state(vid, 0, 1);
    config.set_queue_state(vid, 1, 1);
 
+   config.print_portmap();
+
    if (config.is_port_ready(vid)) {
-      VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
+      VTB_LOG(INFO) << "VhostController: NewDevice Port: " << vid << " is ready";
+      notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, port_cntr_, vid);
    }
 
    VhostController::port_cntr_ += 1;
@@ -140,8 +143,8 @@ void VhostController::on_new_device(int vid) {
 
 void VhostController::on_destroy_device(int vid) {
    VTB_LOG(INFO) << "VhostController: Port with VID: " << vid << " removed";
-   notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, port_cntr_, vid);
-   // config.clear_device(vid);
+   notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, config.get_pid_by_vid(vid), vid);
+   config.clear_device(vid);
 }
 
 void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
@@ -152,7 +155,7 @@ void VhostController::on_vring_state_changed(int vid, uint16_t queue_id,
    config.set_queue_state(vid, queue_id, enable);
 
    if (config.is_port_ready(vid)) {
-      VTB_LOG(INFO) << "VhostController: Port: " << vid << " is ready";
+      VTB_LOG(INFO) << "VhostController: StateChange Port: " << vid << " is ready";
       notify_port_controller(vtb::VhostNotifyMetadata::PORT_UP, port_cntr_, vid);
    }
 }

@@ -34,6 +34,9 @@ public:
 
    const std::map<int, PortMap>& get_pmap() const;
 
+   int get_pid_by_vid(int vid);
+   int get_vid_by_pid(int pid);
+
 private:
    ConfigManager();
    ~ConfigManager();

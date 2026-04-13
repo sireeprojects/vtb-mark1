@@ -33,7 +33,6 @@ protected:
     void dequeue_tx_packets(int vid, int qid, struct rte_mempool*, struct rte_ring*);
     void enqueue_rx_packets(int vid, int qid, struct rte_ring*);
 
-
     void dequeue_tx_packets() override;
     void extract_tx_metadata() override;
     void decode_tx_metadata() override;

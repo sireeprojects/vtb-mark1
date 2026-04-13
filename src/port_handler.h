@@ -58,7 +58,7 @@ protected:
    virtual void worker(VidContext ctx) = 0;
    virtual void launch(VidContext ctx) = 0;
 
-   std::atomic<bool> is_running_{false};
+   std::atomic<bool> is_running_{true};
    std::vector<std::thread> worker_threads_;
 
    // used in both single/two thread model

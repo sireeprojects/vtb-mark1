@@ -37,9 +37,9 @@ int main(int argc, char** argv) {
    vtb::set_verbosity(verbosity);
 
    // start the appropriate port controller
-   // auto mode = config.get_arg<std::string>("--mode");
-   // std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
-   // port_controller->start();
+   auto mode = config.get_arg<std::string>("--mode");
+   std::unique_ptr<vtb::PortController> port_controller = vtb::create_controller(mode);
+   port_controller->start();
 
    // start vhost controller
    auto socket_path = config.get_arg<std::string>("--vhost-sockname");
@@ -51,8 +51,6 @@ int main(int argc, char** argv) {
    rte_eal_remote_launch(keep_alive_thread, NULL, next_core);
 
    rte_eal_mp_wait_lcore();
-
-   config.print_portmap();
 
    vtb::restore_echoctl();
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";

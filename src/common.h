@@ -5,6 +5,9 @@
 #include <memory>
 #include <string_view>
 #include <thread>
+#include <sstream>
+#include <vector>
+#include <string>
 
 #include "messenger.h"
 
@@ -95,5 +98,7 @@ bool send_packet(int fd, const T& data) {
    }
    return true;
 }
+
+std::string format_qids(const std::vector<int>& vec);
 
 }  // namespace vtb

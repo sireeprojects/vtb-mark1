@@ -76,8 +76,28 @@ bool ConfigManager::init(int argc, char** argv) {
    }
 }
 
+// Returns the VID associated with a PID, or -1 if not found
+int ConfigManager::get_vid_by_pid(int pid) {
+   auto it = pvmap_.find(pid);
+   if (it != pvmap_.end()) {
+      return it->second;
+   }
+   return -1; 
+}
+
+// Returns the PID associated with a VID, or -1 if not found
+int ConfigManager::get_pid_by_vid(int vid) {
+   auto it = vpmap_.find(vid);
+   if (it != vpmap_.end()) {
+      return it->second;
+   }
+   return -1;
+}
+
 void ConfigManager::init_vhost_device(int port_id, int vid, int nof_pairs) {
    std::lock_guard<std::mutex> lock(pmap_mutex_);
+
+   pmap_.emplace(vid, PortMap{});
 
    // create entry if it does not exist
    pvmap_[port_id] = vid; 

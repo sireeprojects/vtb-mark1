@@ -9,7 +9,6 @@ PortControllerLoopback::~PortControllerLoopback() {
       worker_.join();
    }
    close(abstract_fd_); // TODO check fd before closing
-
 }
 
 void PortControllerLoopback::create_server() {
@@ -65,6 +64,40 @@ void PortControllerLoopback::epoll_worker() {
    }
 }
 
+void PortControllerLoopback::add_handler(int pid, int vid) {
+   VTB_LOG(DEBUG) << "PortControllerLoopback: add_handler:"
+                  << " pid: " << pid
+                  << " vid: " << vid;
+   // 1. Create the unique_ptr (assuming a constructor like PortHandler(vid))
+   auto handler = std::make_unique<vtb::PortHandlerLoopback>();
+
+   // 2. Move it into the nested map
+   // port_handler_[pid] finds or creates the inner map
+   // [vid] finds or creates the unique_ptr slot
+   port_handler_[pid][vid] = std::move(handler);
+}
+
+void PortControllerLoopback::remove_handler(int pid, int vid) {
+   // 1. Find the inner map for the pid
+   auto it_pid = port_handler_.find(pid);
+
+   if (it_pid != port_handler_.end()) {
+      // 2. Erase the specific vid from the inner map
+      // This destroys the unique_ptr and calls the PortHandler destructor
+      size_t erased = it_pid->second.erase(vid);
+
+      if (erased > 0) {
+         VTB_LOG(DEBUG) << "Successfully removed handler for PID: " << pid << " VID: " << vid;
+      }
+
+      // 3. Optional: If the inner map is now empty, remove the pid entry entirely
+      if (it_pid->second.empty()) {
+         port_handler_.erase(it_pid);
+      }
+   }
+   VTB_LOG(DEBUG) << "PortControllerLoopback: remove_handler: pid not found: " << pid;
+}
+
 void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
    VTB_LOG(DEBUG) << "PortControllerLoopback: Received:"
                << "  meta: " << static_cast<int>(pdrs.meta)
@@ -74,10 +107,15 @@ void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
    // VM shutdown/crashed
    if (pdrs.meta == vtb::VhostNotifyMetadata::PORT_DOWN) {
       try {
+         VTB_LOG(DEBUG) << "PortControllerLoopback: Handler Size: " << port_handler_.size();
          auto& handler = get_port_handler_by_vid(pdrs.vid);
+         VTB_LOG(DEBUG) << "PortControllerLoopback: Handler Size: " << port_handler_.size();
          handler.shutdown();
+         VTB_LOG(DEBUG) << "PortControllerLoopback: Handler Size: " << port_handler_.size();
+         remove_handler(pdrs.pid, pdrs.vid);
+         VTB_LOG(DEBUG) << "PortControllerLoopback: Handler Size: " << port_handler_.size();
       } catch (const std::runtime_error& e) { // device_id wasn't found
-         std::cerr << "Error: " << e.what() << std::endl;
+         VTB_LOG(ERROR) << "PortControllerLoopback: DOWN, VID: " << pdrs.vid << " not found";
       }
       return;
    }
@@ -85,10 +123,11 @@ void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
    // dispatch port handler threads
    if (pdrs.meta == vtb::VhostNotifyMetadata::PORT_UP) {
       try {
+         add_handler(pdrs.pid, pdrs.vid);
          auto& handler = get_port_handler_by_vid(pdrs.pid);
          handler.start(pdrs.pid, pdrs.vid);
       } catch (const std::runtime_error& e) { // device_id wasn't found
-         std::cerr << "Error: " << e.what() << std::endl;
+         VTB_LOG(ERROR) << "PortControllerLoopback: UP, VID: " << pdrs.vid << " not found";
       }
       return;
    }

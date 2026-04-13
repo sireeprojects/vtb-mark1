@@ -26,6 +26,9 @@ private:
 
    void process_notification(PortDeviceRingState pdrs);
 
+   void add_handler(int pid, int vid);
+   void remove_handler(int pid, int vid);
+
    std::string abstract_sockname_{};
    int abstract_fd_{-1};
    int epoll_fd{-1};

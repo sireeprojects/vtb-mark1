@@ -182,4 +182,14 @@ bool is_odd(int n) {
    return (n % 2 != 0);
 }
 
+std::string format_qids(const std::vector<int>& vec) {
+   std::stringstream ss;
+   ss << "{";
+   for (size_t i = 0; i < vec.size(); ++i) {
+      ss << vec[i] << (i == vec.size() - 1 ? "" : ", ");
+   }
+   ss << "}";
+   return ss.str();
+}
+
 }  // namespace vtb
