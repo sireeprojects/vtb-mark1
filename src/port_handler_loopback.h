@@ -25,8 +25,13 @@ protected:
     void worker(VidContext ctx) override;
     void launch(VidContext ctx) override;
 
-    void dequeue_tx_packets(int vid, int qid);
-    void enqueue_rx_packets(int vid, int qid);
+    void create_resources(const std::vector<int>& qids);
+
+    std::map<int, struct rte_mempool*> mempools_;
+    std::map<int, struct rte_ring*> rings_;
+
+    void dequeue_tx_packets(int vid, int qid, struct rte_mempool*, struct rte_ring*);
+    void enqueue_rx_packets(int vid, int qid, struct rte_ring*);
 
 
     void dequeue_tx_packets() override;

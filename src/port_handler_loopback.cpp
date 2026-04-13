@@ -11,22 +11,60 @@ PortHandlerLoopback::~PortHandlerLoopback() {
 }
 
 void PortHandlerLoopback::shutdown() {
+   // stop threading loop
    is_running_ = false;
+
+   // wait for threads to finish
    for (std::thread& t : worker_threads_) {
       if (t.joinable()) {
          t.join();
       }
    }
-   // TODO free mempools
-   //      free rings
+
+   // free mempools and rings used by threads
+   for (auto const& [qid, ptr] : mempools_) {
+      if (ptr) rte_mempool_free(ptr);
+   }
+   for (auto const& [qid, ptr] : rings_) {
+      if (ptr) rte_ring_free(ptr);
+   }
 }
 
-void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid) {
+void PortHandlerLoopback::create_resources(const std::vector<int>& qids) {
+   for (int qid : qids) {
+      // Logic: Only create resources if the ID is odd (Transmit Queue)
+      if (qid % 2 != 0) {
+         // 1. Generate unique names for DPDK visibility
+         std::string mp_name = "mp_tx_q" + std::to_string(qid);
+         std::string ring_name = "ring_tx_q" + std::to_string(qid);
+
+         // 2. Create the Mempool
+         mempools_[qid] = rte_pktmbuf_pool_create(
+            mp_name.c_str(),
+            8191,                      // Number of elements
+            250,                       // Per-lcore cache size
+            0,                         // Private data size
+            RTE_MBUF_DEFAULT_BUF_SIZE, // Data buffer size
+            rte_socket_id()            // NUMA socket
+         );
+
+         // 3. Create the Ring
+         rings_[qid] = rte_ring_create(
+            ring_name.c_str(),
+            1024,                      // Must be power of 2
+            rte_socket_id(),
+            RING_F_SP_ENQ | RING_F_SC_DEQ // Single Producer/Consumer
+         );
+      }
+   }
+}
+
+void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid, struct rte_mempool* mpool, struct rte_ring* ring) {
    struct rte_mbuf* pkts[vtb::PKT_BURST_SZ];
    uint16_t nb_tx = rte_vhost_dequeue_burst(
          vid, 
          qid, 
-         txq_mbuf_pool_, 
+         mpool, 
          pkts, 
          PKT_BURST_SZ);
 
@@ -38,7 +76,7 @@ void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid) {
 	uint16_t sent = 0;
 	while (sent < nb_tx) {
 	    unsigned int pushed = rte_ring_sp_enqueue_burst(
-	        txq_ring_,
+	        ring,
 	        reinterpret_cast<void**>(&pkts[sent]),
 	        nb_tx - sent,
 	        nullptr);
@@ -50,11 +88,11 @@ void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid) {
    VTB_LOG(INFO) << "PortHandlerLoopback: Vhost Dequeued: " 
       << nb_tx << " Ring Enqueued: " << txq_pkt_cnt_ ;
 }
-
-void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid) {
+ 
+void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid, struct rte_ring* ring) {
 	struct rte_mbuf* pkts[PKT_BURST_SZ];
 	unsigned int nb_deq = rte_ring_sc_dequeue_burst(
-	    txq_ring_,
+	    ring,
 	    reinterpret_cast<void**>(pkts),
 	    PKT_BURST_SZ,
 	    nullptr);
@@ -135,19 +173,18 @@ void PortHandlerLoopback::worker(VidContext ctx) {
    int vid = ctx.vid;
    std::vector<int>qids = ctx.qids;
 
-   // TODO create mempool and rings here
+   create_resources(qids);
 
    while (is_running_) {
       for (unsigned int id=0; id<qids.size(); id++) {
-         if (id & 1) { // CHECK
-            dequeue_tx_packets(vid, qids[id]);
+         if (id & 1) {
+            dequeue_tx_packets(vid, qids[id], mempools_[id], rings_[id]);
          } else {
-            enqueue_rx_packets(vid, qids[id]);
+            enqueue_rx_packets(vid, qids[id], rings_[id]);
          }
       }
    }
 
-   // TODO free mempool and rings here
 }
 
 void PortHandlerLoopback::launch(VidContext ctx) {
