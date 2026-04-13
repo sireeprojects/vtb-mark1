@@ -33,7 +33,7 @@ public:
    PortHandler(const PortHandler&) = delete;
    PortHandler& operator=(const PortHandler&) = delete;
 
-   virtual void start() = 0;
+   virtual void start(int, int) = 0;
    virtual void shutdown() = 0;
 
 protected:
@@ -55,29 +55,13 @@ protected:
    virtual void create_rx_vm_metadata() = 0;
    virtual void enqueue_rx_packets() = 0;
 
-   // workers
-   virtual void txq_worker() = 0;
-   virtual void rxq_worker() = 0;
-   virtual void txq_rxq_worker() = 0;
    virtual void worker(VidContext ctx) = 0;
    virtual void launch(VidContext ctx) = 0;
 
    std::atomic<bool> is_running_{false};
-
-   int vid{-1};
-   int rxqid{-1};
-   int txqid{-1};
-
-   // used in two thread model only
-   // used in both loopback/back2back model
-   std::thread txq_thread_;
-   std::thread rxq_thread_;
-
-   // used in single thread model only
-   std::thread txq_rxq_thread_;
+   std::vector<std::thread> worker_threads_;
 
    // used in both single/two thread model
-   // used in both loopback/back2back model
    struct rte_mempool *txq_mbuf_pool_{nullptr};
    struct rte_mempool *rxq_mbuf_pool_{nullptr};
 

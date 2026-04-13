@@ -86,7 +86,7 @@ void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {
    if (pdrs.meta == vtb::VhostNotifyMetadata::PORT_UP) {
       try {
          auto& handler = get_port_handler_by_vid(pdrs.pid);
-         handler.start();
+         handler.start(pdrs.pid, pdrs.vid);
       } catch (const std::runtime_error& e) { // device_id wasn't found
          std::cerr << "Error: " << e.what() << std::endl;
       }
