@@ -73,7 +73,6 @@ run:
 			-- \
 			--mode Loopback \
 			--verbosity Trace \
-			--txrx-threads 1 \
 			--threading-mode EachQ-OneThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
@@ -82,6 +81,11 @@ run:
 
 .PHONY: all clean run
 
+
+#   EachQ-TwoThread
+#   EachQ-OneThread
+#   AllQ-TwoThread
+#   AllQ-OneThread
 
 
 		#--help \

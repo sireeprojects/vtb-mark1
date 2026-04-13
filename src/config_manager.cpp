@@ -16,11 +16,6 @@ ConfigManager::ConfigManager() {
                         "Loopback | Back2Back | Emulator", 
                         false, 
                         "Loopback");
-   parser_.add_argument("--txrx-threads",
-                        "-txrxth",
-                        "1 | 2", 
-                        false, 
-                        "1");
    parser_.add_argument("--threading-mode",
                         "-thmode",
                         "EachQ-TwoThread | EachQ-OneThread | AllQ-TwoThread | AllQ-OneThread",

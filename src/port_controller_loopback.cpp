@@ -87,7 +87,9 @@ void PortControllerLoopback::remove_handler(int pid, int vid) {
       size_t erased = it_pid->second.erase(vid);
 
       if (erased > 0) {
-         VTB_LOG(DEBUG) << "Successfully removed handler for PID: " << pid << " VID: " << vid;
+         VTB_LOG(DEBUG) << "PortControllerLoopback: Successfully removed handler for PID: " << pid << " VID: " << vid;
+      } else {
+         VTB_LOG(DEBUG) << "PortControllerLoopback: remove_handler: pid not found: " << pid;
       }
 
       // 3. Optional: If the inner map is now empty, remove the pid entry entirely
@@ -95,7 +97,6 @@ void PortControllerLoopback::remove_handler(int pid, int vid) {
          port_handler_.erase(it_pid);
       }
    }
-   VTB_LOG(DEBUG) << "PortControllerLoopback: remove_handler: pid not found: " << pid;
 }
 
 void PortControllerLoopback::process_notification(PortDeviceRingState pdrs) {

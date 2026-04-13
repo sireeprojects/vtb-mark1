@@ -210,7 +210,6 @@ void PortHandlerLoopback::launch(VidContext ctx) {
    std::thread& last_thread = worker_threads_.back();
    std::string worker_name = "WorkerV" + std::to_string(ctx.vid);
    vtb::set_thread_name(last_thread, worker_name);
-   sleep(1);
 }
 
 void PortHandlerLoopback::dispatch(const VidContext& context, const std::string& mode_str) {
