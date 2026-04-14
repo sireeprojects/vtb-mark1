@@ -101,4 +101,6 @@ bool send_packet(int fd, const T& data) {
 
 std::string format_qids(const std::vector<int>& vec);
 
+std::string demangle(const char* name);
+
 }  // namespace vtb

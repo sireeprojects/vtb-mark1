@@ -83,7 +83,7 @@ run:
 			-- \
 			--mode Loopback \
 			--verbosity Trace \
-			--threading-mode EachQ-TwoThread \
+			--threading-mode AllQ-TwoThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
 			--port-control-sockname controlsockname \

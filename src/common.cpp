@@ -10,6 +10,11 @@
 #include <iostream>
 #include <string>
 
+#ifdef __GNUC__
+#include <cxxabi.h>
+#endif
+
+
 // #include "port_controller_back2back.h"
 // #include "port_controller_emulator.h"
 #include "port_controller_loopback.h"
@@ -190,6 +195,19 @@ std::string format_qids(const std::vector<int>& vec) {
    }
    ss << "}";
    return ss.str();
+}
+
+std::string demangle(const char* name) {
+#ifdef __GNUC__
+   int status;
+   char* res = abi::__cxa_demangle(name, nullptr, nullptr, &status);
+   if (status == 0) {
+      std::string s(res);
+      free(res);
+      return s;
+   }
+#endif
+   return name; // Fallback to mangled name if not on GCC/Clang
 }
 
 }  // namespace vtb

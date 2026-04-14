@@ -1,12 +1,4 @@
 #include <csignal>
-
-#include "common.h"
-#include "logger.h"
-#include "messenger.h"
-#include "cmdline_parser.h"
-#include "config_manager.h"
-#include "vhost_controller.h"
-#include "port_controller_loopback.h"
 #include <rte_launch.h>
 #include <rte_pause.h>
 #include <execinfo.h>
@@ -16,18 +8,13 @@
 #include <cxxabi.h>
 #endif
 
-std::string demangle(const char* name) {
-#ifdef __GNUC__
-   int status;
-   char* res = abi::__cxa_demangle(name, nullptr, nullptr, &status);
-   if (status == 0) {
-      std::string s(res);
-      free(res);
-      return s;
-   }
-#endif
-   return name; // Fallback to mangled name if not on GCC/Clang
-}
+#include "common.h"
+#include "logger.h"
+#include "messenger.h"
+#include "cmdline_parser.h"
+#include "config_manager.h"
+#include "vhost_controller.h"
+#include "port_controller_loopback.h"
 
 bool keep_running{false};
 static int keep_alive_thread(void*);
@@ -74,7 +61,28 @@ int main(int argc, char** argv) {
    return 0;
 }
 
-static void signal_handler(int sig) {
+static int keep_alive_thread(void*) {
+   while (!keep_running) {
+      rte_pause();
+   }
+   return 0;
+}
+
+static void setup_signal_handler() {
+   std::set_terminate(vtb::graceful_exit);
+   std::signal(SIGINT, signal_handler);  // detect ctrl+c
+   std::signal(SIGTERM, signal_handler); // terminate from os
+   std::signal(SIGSEGV, signal_handler); // Segfault
+   std::signal(SIGABRT, signal_handler); // Abort (rte_panic)
+   std::signal(SIGFPE,  signal_handler); // Math error
+}                                         
+
+static void signal_handler(int) {
+   VTB_LOG(FATAL) << "<User Pressed Ctrl+C>";
+   keep_running = true;
+}
+
+[[maybe_unused]] static void signal_handler_crash(int sig) {
    // Disable handlers to prevent loops
    std::signal(SIGSEGV, SIG_DFL);
    std::signal(SIGABRT, SIG_DFL);
@@ -122,22 +130,6 @@ static void signal_handler(int sig) {
    fprintf(stderr, "\n[VTB] Emergency shutdown complete. Exiting.\n");
    _exit(0);
 }
-
-static int keep_alive_thread(void*) {
-   while (!keep_running) {
-      rte_pause();
-   }
-   return 0;
-}
-
-static void setup_signal_handler() {
-   std::set_terminate(vtb::graceful_exit);
-   std::signal(SIGINT, signal_handler);  // detect ctrl+c
-   std::signal(SIGTERM, signal_handler); // terminate from os
-   std::signal(SIGSEGV, signal_handler); // Segfault
-   std::signal(SIGABRT, signal_handler); // Abort (rte_panic)
-   std::signal(SIGFPE,  signal_handler); // Math error
-}                                         
 
 /*
 static void signal_handler(int sig) {
