@@ -38,13 +38,13 @@ void PortHandlerLoopback::shutdown() {
    rings_.clear();
 }
 
-void PortHandlerLoopback::create_resources(const std::vector<int>& qids) {
+void PortHandlerLoopback::create_resources(const int pid, const std::vector<int>& qids) {
    for (int qid : qids) {
       // Logic: Only create resources if the ID is odd (Transmit Queue)
       if (qid % 2 != 0) {
          // 1. Generate unique names for DPDK visibility
-         std::string mp_name = "mp_tx_q" + std::to_string(qid);
-         std::string ring_name = "ring_tx_q" + std::to_string(qid);
+         std::string mp_name = "mp_tx_q"     + std::to_string(pid) + std::to_string(qid);
+         std::string ring_name = "ring_tx_q" + std::to_string(pid) + std::to_string(qid);
 
          // 2. Create the Mempool
          mempools_[qid] = rte_pktmbuf_pool_create(
@@ -246,7 +246,7 @@ void PortHandlerLoopback::start([[maybe_unused]] int pid, int vid) {
    ctx.vid = vid;
    ctx.qids = get_queue_ids_by_vid(vid);
 
-   create_resources(ctx.qids);
+   create_resources(pid, ctx.qids);
 
    VTB_LOG(DEBUG) << "PortHandlerLoopback: Processing Queue ids: " << format_qids(ctx.qids);
 

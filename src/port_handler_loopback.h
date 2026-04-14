@@ -25,7 +25,7 @@ protected:
     void worker(VidContext ctx) override;
     void launch(VidContext ctx) override;
 
-    void create_resources(const std::vector<int>& qids);
+    void create_resources(const int pid, const std::vector<int>& qids);
 
     std::map<int, struct rte_mempool*> mempools_;
     std::map<int, struct rte_ring*> rings_;
