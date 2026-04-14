@@ -70,6 +70,13 @@ struct PortDeviceRingState {
    int vid;
 };
 
+enum class ThreadMode {
+   EachQTwoThread,
+   EachQOneThread,
+   AllQTwoThread,
+   AllQOneThread
+};
+
 class PortController;
 
 // The factory function declaration
@@ -102,5 +109,7 @@ bool send_packet(int fd, const T& data) {
 std::string format_qids(const std::vector<int>& vec);
 
 std::string demangle(const char* name);
+
+ThreadMode string_to_thread_mode(std::string_view mode_str);
 
 }  // namespace vtb

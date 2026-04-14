@@ -131,7 +131,7 @@ void VhostController::on_new_device(int vid) {
    config.set_queue_state(vid, 0, 1);
    config.set_queue_state(vid, 1, 1);
 
-   config.print_portmap();
+   // config.print_portmap();
 
    // if (config.is_port_ready(vid)) {
    if (vring_count==2) {

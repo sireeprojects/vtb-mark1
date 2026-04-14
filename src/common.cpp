@@ -210,4 +210,22 @@ std::string demangle(const char* name) {
    return name; // Fallback to mangled name if not on GCC/Clang
 }
 
+ThreadMode string_to_thread_mode(std::string_view mode_str) {
+   if (mode_str == "EachQ-TwoThread") {
+      return ThreadMode::EachQTwoThread;
+   }
+   if (mode_str == "EachQ-OneThread") {
+      return ThreadMode::EachQOneThread;
+   }
+   if (mode_str == "AllQ-TwoThread") {
+      return ThreadMode::AllQTwoThread;
+   }
+   if (mode_str == "AllQ-OneThread") {
+      return ThreadMode::AllQOneThread;
+   }
+
+   throw std::invalid_argument("Invalid thread mode string: " + std::string(mode_str));
+}
+
+
 }  // namespace vtb
