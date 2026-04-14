@@ -91,6 +91,24 @@ run:
 			--port-control-sockname controlsockname \
 			--vhost-sockname /tmp/vhost-user.sock
 
+noh:
+	@./vtb -l 1-2 --file-prefix=vhost_backend --no-pci --no-telemetry \
+			--log-level=lib.vhost.config:3 \
+			--log-level=lib.vhost:error \
+			--log-level=pmd.net.vhost:error \
+			--log-level=lib.eal:3 \
+			--log-level=lib.ring:8 \
+			--log-level=lib.mempool:8 \
+			--no-huge \
+			-- \
+			--mode Loopback \
+			--verbosity Trace \
+			--threading-mode AllQ-TwoThread \
+			--abstract-sockname absockname \
+			--port-data-sockname datasockname \
+			--port-control-sockname controlsockname \
+			--vhost-sockname /tmp/vhost-user.sock
+
 .PHONY: all clean run
 
 			#--threading-mode EachQ-OneThread \
