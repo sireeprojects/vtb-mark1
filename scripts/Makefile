@@ -84,7 +84,7 @@ run:
 			--huge-unlink \
 			-- \
 			--mode Loopback \
-			--verbosity Trace \
+			--verbosity Debug \
 			--threading-mode AllQ-TwoThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \

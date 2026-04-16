@@ -227,5 +227,48 @@ ThreadMode string_to_thread_mode(std::string_view mode_str) {
    throw std::invalid_argument("Invalid thread mode string: " + std::string(mode_str));
 }
 
+// void log_mbuf_hex(struct rte_mbuf* m, const std::string& label) {
+//     std::stringstream ss;
+//     unsigned char* data = rte_pktmbuf_mtod(m, unsigned char*);
+//     uint32_t len = rte_pktmbuf_data_len(m);
+// 
+//     ss << label << " (len=" << len << "): ";
+//     for (uint32_t i = 0; i < len; i++) {
+//         ss << std::hex << std::setw(2) << std::setfill('0') << (int)data[i] << " ";
+//         if ((i + 1) % 16 == 0 && i + 1 < len) ss << "\n    ";
+//     }
+//     VTB_LOG(DEBUG) << ss.str();
+// }
+
+void log_mbuf_hex(struct rte_mbuf* m, const char* label, uint16_t vid, uint16_t qid) {
+    if (!m) return;
+
+    // 1. Header line: The ':' triggers the start, no bytes here.
+    std::stringstream header;
+    header << label << " VID:" << vid << " Q:" << qid << " (len=" << m->pkt_len << "):";
+    VTB_LOG(DEBUG) << header.str();
+
+    unsigned char* data = rte_pktmbuf_mtod(m, unsigned char*);
+    uint32_t len = m->data_len;
+
+    // 2. Alignment: "[..DEBUG] " is 10 characters.
+    // This string of 10 spaces ensures the bytes align with your label above.
+    const std::string indent(5, ' ');
+
+    for (uint32_t i = 0; i < len; i += 16) {
+        std::stringstream ss;
+        ss << indent;
+
+        for (uint32_t j = 0; j < 16; j++) {
+            if (i + j < len) {
+                ss << std::hex << std::setw(2) << std::setfill('0')
+                   << (int)data[i + j] << " ";
+            }
+        }
+
+        // 3. Each call to VTB_LOG will start on a new line with the prefix.
+        VTB_LOG(DEBUG) << ss.str();
+    }
+}
 
 }  // namespace vtb

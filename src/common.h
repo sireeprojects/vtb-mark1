@@ -8,6 +8,8 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <rte_mbuf.h>
+#include <iomanip>
 
 #include "messenger.h"
 
@@ -121,5 +123,8 @@ std::string format_qids(const std::vector<int>& vec);
 std::string demangle(const char* name);
 
 ThreadMode string_to_thread_mode(std::string_view mode_str);
+
+// void log_mbuf_hex(struct rte_mbuf* m, const std::string& label);
+void log_mbuf_hex(struct rte_mbuf* m, const char* label, uint16_t vid, uint16_t qid);
 
 }  // namespace vtb

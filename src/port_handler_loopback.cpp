@@ -127,6 +127,10 @@ void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid, struct rte_mempoo
    if (nb_tx == 0) {
       return;
    }
+   
+   for (uint16_t i=0; i<nb_tx; i++) {
+      log_mbuf_hex(pkts[i], "TX_DEQUEUE:", vid, qid);
+   }
 
 	// Lossless enqueue into ring — retry until all are in
 	uint16_t sent = 0;
@@ -167,14 +171,19 @@ void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid, struct rte_ring* 
 	// Lossless enqueue to guest RX — retry until all accepted
 	uint16_t sent = 0;
 	uint32_t retries = 0;
+   uint16_t nb_tx = 0;
 	while (sent < nb_deq && retries < MAX_ENQUEUE_RETRIES) {
-	    uint16_t nb_tx = rte_vhost_enqueue_burst(vid, qid, &pkts[sent], nb_deq - sent);
+	    nb_tx = rte_vhost_enqueue_burst(vid, qid, &pkts[sent], nb_deq - sent);
 	    sent += nb_tx;
 	    if (sent < nb_deq) {
 	        retries++;
 	        usleep(1); // backpressure: guest RX ring full
 	    }
 	}
+
+   for (uint16_t i=0; i<nb_tx; i++) {
+      log_mbuf_hex(pkts[i], "RX_ENQUEUE:", vid, qid);
+   }
 
 	// rxq_pkt_cnt_ += sent;
 

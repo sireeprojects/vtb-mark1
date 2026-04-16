@@ -26,13 +26,17 @@ qemu-system-x86_64 \
     -device virtserialport,chardev=ch1,id=ch1,name=com.redhat.spice.0 \
     \
     -chardev socket,id=char1,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet1,queues=8,chardev=char1,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet1,mq=on,vectors=18,id=net1,mac="00:60:2f:00:00:01",bus=pci.0,addr=0x7 \
+    -netdev type=vhost-user,id=hostnet1,queues=1,chardev=char1,vhostforce=on \
+    -device virtio-net-pci,netdev=hostnet1,mq=on,vectors=4,id=net1,mac="00:60:2f:00:00:01",bus=pci.0,addr=0x7 \
    ;
 
 
 # vector formula
 # vectors = (queues*2) + 2
+
+    #-chardev socket,id=char1,path=/tmp/vhost-user.sock \
+    #-netdev type=vhost-user,id=hostnet1,queues=8,chardev=char1,vhostforce=on \
+    #-device virtio-net-pci,netdev=hostnet1,mq=on,vectors=18,id=net1,mac="00:60:2f:00:00:01",bus=pci.0,addr=0x7 \
 
 
 # qemu \
