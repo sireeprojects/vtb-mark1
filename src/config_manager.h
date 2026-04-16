@@ -45,6 +45,14 @@ public:
    void print_final_report();   
    void clear_statistics();
 
+   int get_nof_queues(int vid) {
+      return pmap_[vid].vd.nof_queue_pairs;
+   }
+
+   int get_nof_vids() {
+      return pmap_.size();
+   }
+
 private:
    ConfigManager();
    ~ConfigManager();

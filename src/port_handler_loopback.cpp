@@ -60,13 +60,15 @@ void PortHandlerLoopback::create_resources(const int pid, const std::vector<int>
          // 3. Create the Ring
          rings_[qid] = rte_ring_create(
             ring_name.c_str(),
-            1024,                      // Must be power of 2
+            131072,                      // Must be power of 2
             rte_socket_id(),
             RING_F_SP_ENQ | RING_F_SC_DEQ // Single Producer/Consumer
          );
       }
    }
 }
+
+            // 1024,                      // Must be power of 2
 
 void PortHandlerLoopback::worker(VidContext ctx) {
    int vid = ctx.vid;

@@ -84,8 +84,8 @@ run:
 			--huge-unlink \
 			-- \
 			--mode Loopback \
-			--verbosity Debug \
-			--threading-mode AllQ-TwoThread \
+			--verbosity Info \
+			--threading-mode EachQ-OneThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
 			--port-control-sockname controlsockname \

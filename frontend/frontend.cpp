@@ -18,6 +18,7 @@
 static constexpr uint32_t MBUF_POOL_SIZE = 8191;
 static constexpr uint32_t MBUF_CACHE_SIZE = 256;
 static constexpr uint16_t PKT_BURST_SZ = 32;
+// static constexpr uint16_t PKT_BURST_SZ = 32;
 static constexpr uint16_t PRIV_DATA_SIZE = 48;
 static constexpr uint16_t VIRTIO_RXQ = 0;
 static constexpr uint16_t VIRTIO_TXQ = 1;
@@ -88,10 +89,12 @@ public:
       uint16_t port_id = 0;
 
       while (!force_quit) {
-         // send_burst(port_id);
-         // receive_burst(port_id);
-         // Throttle slightly to keep logs readable; remove for max performance
-         rte_delay_us(500000);
+         RTE_ETH_FOREACH_DEV(port_id) {
+            send_burst(port_id);
+            receive_burst(port_id);
+            // Throttle slightly to keep logs readable; remove for max performance
+            rte_delay_us(500000);
+         }
       }
 
       RTE_ETH_FOREACH_DEV(port_id) {
@@ -133,7 +136,7 @@ private:
 
       uint16_t sent = rte_eth_tx_burst(port_id, 0, pkts, PKT_BURST_SZ);
       if (sent > 0) {
-         std::cout << "Sent " << sent << " packets." << std::endl;
+         VTB_LOG(INFO) << "Sent " << sent << " packets";
       }
 
       // Free unsent packets
@@ -147,8 +150,7 @@ private:
       struct rte_mbuf* pkts[PKT_BURST_SZ];
       uint16_t rcved = rte_eth_rx_burst(port_id, 0, pkts, PKT_BURST_SZ);
       if (rcved > 0) {
-         std::cout << "Received " << rcved
-                   << " packets back from loopback." << std::endl;
+         VTB_LOG(INFO) << "Received " << rcved << " packets";
          for (uint16_t i = 0; i < rcved; i++) rte_pktmbuf_free(pkts[i]);
       }
    }

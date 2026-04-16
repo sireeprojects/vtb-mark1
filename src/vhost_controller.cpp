@@ -145,7 +145,8 @@ void VhostController::on_new_device(int vid) {
 void VhostController::on_destroy_device(int vid) {
    VTB_LOG(INFO) << "VhostController: Port with VID: " << vid << " removed";
    notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, config.get_pid_by_vid(vid), vid);
-   config.clear_device(vid);
+   // config.print_final_report();
+   // config.clear_device(vid);
    VhostController::port_cntr_ -= 1;
 }
 
