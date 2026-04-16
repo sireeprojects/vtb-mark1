@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
    rte_eal_remote_launch(keep_alive_thread, NULL, next_core);
 
    rte_eal_mp_wait_lcore();
+   config.print_final_report();
 
    vtb::restore_echoctl();
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";

@@ -20,8 +20,8 @@ protected:
     void launch(VidContext ctx) override;
     void create_resources(const int pid, const std::vector<int>& qids) override;
 
-    void dequeue_tx_packets(int vid, int qid, struct rte_mempool*, struct rte_ring*);
-    void enqueue_rx_packets(int vid, int qid, struct rte_ring*);
+    void dequeue_tx_packets(int vid, int qid, struct rte_mempool*, struct rte_ring*, vtb::QueueStats& stats);
+    void enqueue_rx_packets(int vid, int qid, struct rte_ring*, vtb::QueueStats& stats);
 
     void extract_tx_metadata() override;
     void decode_tx_metadata() override;

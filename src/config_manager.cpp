@@ -324,4 +324,498 @@ const std::map<int, PortMap>& ConfigManager::get_pmap() const {
    return pmap_;
 }
 
+void ConfigManager::clear_statistics() {
+    for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+        for (int q = 0; q < MAX_QUEUES; ++q) {
+            auto& s = stats_table_[v][q];
+            s.tx_frames.store(0, std::memory_order_relaxed);
+            s.rx_frames.store(0, std::memory_order_relaxed);
+            s.tx_dropped.store(0, std::memory_order_relaxed);
+            s.rx_dropped.store(0, std::memory_order_relaxed);
+        }
+    }
+    VTB_LOG(INFO) << "All traffic statistics have been cleared.";
+}
+
+// with total row
+void ConfigManager::print_final_report() {
+    const int total_width = 80;
+    const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+    int padding = (total_width - (int)title.length()) / 2;
+
+    std::stringstream ss;
+    uint64_t total_tx = 0, total_rx = 0, total_txd = 0, total_rxd = 0;
+
+    VTB_LOG(INFO) << std::string(total_width, '=');
+    ss.str(""); ss.clear();
+    ss << std::string(padding, ' ') << title;
+    VTB_LOG(INFO) << ss.str();
+    VTB_LOG(INFO) << std::string(total_width, '=');
+
+    // Header
+    ss.str(""); ss.clear();
+    ss << std::left  << std::setw(6)  << "VID" 
+       << std::setw(6)  << "QP" 
+       << std::right << std::setw(14) << "TX Frames" 
+       << std::setw(14) << "RX Frames" 
+       << std::setw(13) << "TX Drp" 
+       << std::setw(13) << "RX Drp";
+    VTB_LOG(INFO) << ss.str();
+    VTB_LOG(INFO) << std::string(total_width, '-');
+
+    bool any_device_active = false;
+
+    for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+        bool vid_has_data = false;
+        // Pre-check for VID activity
+        for (int q = 0; q < MAX_QUEUES; ++q) {
+            if (stats_table_[v][q].tx_frames.load(std::memory_order_relaxed) > 0 ||
+                stats_table_[v][q].rx_frames.load(std::memory_order_relaxed) > 0) {
+                vid_has_data = true;
+                break;
+            }
+        }
+
+        if (vid_has_data) {
+            any_device_active = true;
+            for (int q = 0; q < MAX_QUEUES; q += 2) {
+                auto& s_even = stats_table_[v][q];
+                auto& s_odd  = stats_table_[v][q + 1];
+
+                uint64_t rx  = s_even.rx_frames.load(std::memory_order_relaxed);
+                uint64_t rxd = s_even.rx_dropped.load(std::memory_order_relaxed);
+                uint64_t tx  = s_odd.tx_frames.load(std::memory_order_relaxed);
+                uint64_t txd = s_odd.tx_dropped.load(std::memory_order_relaxed);
+
+                // Add to Global Totals
+                total_tx += tx; total_rx += rx;
+                total_txd += txd; total_rxd += rxd;
+
+                ss.str(""); ss.clear();
+                ss << std::left  << std::setw(6)  << v 
+                   << std::setw(6)  << (q / 2)
+                   << std::right << std::setw(14) << tx 
+                   << std::setw(14) << rx 
+                   << std::setw(13) << txd 
+                   << std::setw(13) << rxd;
+                VTB_LOG(INFO) << ss.str();
+            }
+            VTB_LOG(INFO) << std::string(total_width, '-');
+        }
+    }
+
+    if (any_device_active) {
+        // Print the Total Row
+        ss.str(""); ss.clear();
+        ss << std::left  << std::setw(12) << "TOTAL" 
+           << std::right << std::setw(14) << total_tx 
+           << std::setw(14) << total_rx 
+           << std::setw(13) << total_txd 
+           << std::setw(13) << total_rxd;
+        VTB_LOG(INFO) << ss.str();
+    } else {
+        VTB_LOG(INFO) << "          No traffic processed across any Vhost devices.";
+    }
+
+    VTB_LOG(INFO) << std::string(total_width, '=');
+}
+
+// good without total row
+// void ConfigManager::print_final_report() {
+//     const int total_width = 80; // Tightened from 85 to 80
+//     const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+//     int padding = (total_width - (int)title.length()) / 2;
+// 
+//     std::stringstream ss;
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+//     ss.str(""); ss.clear();
+//     ss << std::string(padding, ' ') << title;
+//     VTB_LOG(INFO) << ss.str();
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// 
+//     // Adjusted widths: VID(6), QP(4), TX(14), RX(14), TXD(12), RXD(12)
+//     ss.str(""); ss.clear();
+//     ss << std::left  << std::setw(6)  << "VID" 
+//        << std::setw(6)  << "QP" 
+//        << std::right << std::setw(14) << "TX Frames" 
+//        << std::setw(14) << "RX Frames" 
+//        << std::setw(13) << "TX Drp" 
+//        << std::setw(13) << "RX Drp";
+//     VTB_LOG(INFO) << ss.str();
+//     VTB_LOG(INFO) << std::string(total_width, '-');
+// 
+//     bool any_device_active = false;
+// 
+//     for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+//         bool vid_has_data = false;
+//         for (int q = 0; q < MAX_QUEUES; ++q) {
+//             if (stats_table_[v][q].tx_frames.load(std::memory_order_relaxed) > 0 ||
+//                 stats_table_[v][q].rx_frames.load(std::memory_order_relaxed) > 0) {
+//                 vid_has_data = true;
+//                 break;
+//             }
+//         }
+// 
+//         if (vid_has_data) {
+//             any_device_active = true;
+//             for (int q = 0; q < MAX_QUEUES; q += 2) {
+//                 auto& s_even = stats_table_[v][q];
+//                 auto& s_odd  = stats_table_[v][q + 1];
+// 
+//                 uint64_t rx  = s_even.rx_frames.load(std::memory_order_relaxed);
+//                 uint64_t rxd = s_even.rx_dropped.load(std::memory_order_relaxed);
+//                 uint64_t tx  = s_odd.tx_frames.load(std::memory_order_relaxed);
+//                 uint64_t txd = s_odd.tx_dropped.load(std::memory_order_relaxed);
+// 
+//                 ss.str(""); ss.clear();
+//                 int qp_index = q / 2;
+// 
+//                 ss << std::left  << std::setw(6)  << v 
+//                    << std::setw(6)  << qp_index
+//                    << std::right << std::setw(14) << tx 
+//                    << std::setw(14) << rx 
+//                    << std::setw(13) << txd 
+//                    << std::setw(13) << rxd;
+//                 VTB_LOG(INFO) << ss.str();
+//             }
+//             VTB_LOG(INFO) << std::string(total_width, '-');
+//         }
+//     }
+// 
+//     if (!any_device_active) {
+//         VTB_LOG(INFO) << "          No traffic processed across any Vhost devices.";
+//     }
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// }
+
+// void ConfigManager::print_final_report() {
+//     const int total_width = 85;
+//     const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+//     int padding = (total_width - (int)title.length()) / 2;
+// 
+//     std::stringstream ss;
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+//     ss.str(""); ss.clear();
+//     ss << std::string(padding, ' ') << title;
+//     VTB_LOG(INFO) << ss.str();
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// 
+//     ss.str(""); ss.clear();
+//     ss << std::left  << std::setw(6)  << "VID"
+//        << std::setw(10) << "QP"           // Changed label to Queue Pair (QP)
+//        << std::right << std::setw(16) << "TX Frames"
+//        << std::setw(16) << "RX Frames"
+//        << std::setw(15) << "TX Drp"
+//        << std::setw(15) << "RX Drp";
+//     VTB_LOG(INFO) << ss.str();
+//     VTB_LOG(INFO) << std::string(total_width, '-');
+// 
+//     bool any_device_active = false;
+// 
+//     for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+//         bool vid_has_data = false;
+//         for (int q = 0; q < MAX_QUEUES; ++q) {
+//             if (stats_table_[v][q].tx_frames.load(std::memory_order_relaxed) > 0 ||
+//                 stats_table_[v][q].rx_frames.load(std::memory_order_relaxed) > 0) {
+//                 vid_has_data = true;
+//                 break;
+//             }
+//         }
+// 
+//         if (vid_has_data) {
+//             any_device_active = true;
+//             for (int q = 0; q < MAX_QUEUES; q += 2) {
+//                 auto& s_even = stats_table_[v][q];
+//                 auto& s_odd  = stats_table_[v][q + 1];
+// 
+//                 uint64_t rx  = s_even.rx_frames.load(std::memory_order_relaxed);
+//                 uint64_t rxd = s_even.rx_dropped.load(std::memory_order_relaxed);
+//                 uint64_t tx  = s_odd.tx_frames.load(std::memory_order_relaxed);
+//                 uint64_t txd = s_odd.tx_dropped.load(std::memory_order_relaxed);
+// 
+//                 ss.str(""); ss.clear();
+// 
+//                 // Calculate the pair index (0, 1, 2... up to 7)
+//                 int qp_index = q / 2;
+// 
+//                 ss << std::left  << std::setw(6)  << v
+//                    << std::setw(10) << qp_index
+//                    << std::right << std::setw(16) << tx
+//                    << std::setw(16) << rx
+//                    << std::setw(15) << txd
+//                    << std::setw(15) << rxd;
+//                 VTB_LOG(INFO) << ss.str();
+//             }
+//             VTB_LOG(INFO) << std::string(total_width, '-');
+//         }
+//     }
+// 
+//     if (!any_device_active) {
+//         VTB_LOG(INFO) << "             No traffic processed across any Vhost devices.";
+//     }
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// }
+
+// void ConfigManager::print_final_report() {
+//     const int total_width = 85;
+//     const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+//     int padding = (total_width - (int)title.length()) / 2;
+// 
+//     std::stringstream ss;
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+//     ss.str(""); ss.clear();
+//     ss << std::string(padding, ' ') << title;
+//     VTB_LOG(INFO) << ss.str();
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// 
+//     ss.str(""); ss.clear();
+//     ss << std::left  << std::setw(6)  << "VID"
+//        << std::setw(10) << "Q-PAIR"
+//        << std::right << std::setw(16) << "TX Frames"
+//        << std::setw(16) << "RX Frames"
+//        << std::setw(15) << "TX Drp"
+//        << std::setw(15) << "RX Drp";
+//     VTB_LOG(INFO) << ss.str();
+//     VTB_LOG(INFO) << std::string(total_width, '-');
+// 
+//     bool any_device_active = false;
+// 
+//     for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+//         // First, check if this VID has been used at all
+//         bool vid_has_data = false;
+//         for (int q = 0; q < MAX_QUEUES; ++q) {
+//             if (stats_table_[v][q].tx_frames.load(std::memory_order_relaxed) > 0 ||
+//                 stats_table_[v][q].rx_frames.load(std::memory_order_relaxed) > 0) {
+//                 vid_has_data = true;
+//                 break;
+//             }
+//         }
+// 
+//         // If the VID is active, print ALL its negotiated pairs
+//         if (vid_has_data) {
+//             any_device_active = true;
+//             for (int q = 0; q < MAX_QUEUES; q += 2) {
+//                 auto& s_even = stats_table_[v][q];
+//                 auto& s_odd  = stats_table_[v][q + 1];
+// 
+//                 uint64_t rx  = s_even.rx_frames.load(std::memory_order_relaxed);
+//                 uint64_t rxd = s_even.rx_dropped.load(std::memory_order_relaxed);
+//                 uint64_t tx  = s_odd.tx_frames.load(std::memory_order_relaxed);
+//                 uint64_t txd = s_odd.tx_dropped.load(std::memory_order_relaxed);
+// 
+//                 ss.str(""); ss.clear();
+//                 std::string pair_label = std::to_string(q) + "/" + std::to_string(q+1);
+// 
+//                 ss << std::left  << std::setw(6)  << v
+//                    << std::setw(10) << pair_label
+//                    << std::right << std::setw(16) << tx
+//                    << std::setw(16) << rx
+//                    << std::setw(15) << txd
+//                    << std::setw(15) << rxd;
+//                 VTB_LOG(INFO) << ss.str();
+//             }
+//             // Add a small separator between different VIDs for clarity
+//             VTB_LOG(INFO) << std::string(total_width, '-');
+//         }
+//     }
+// 
+//     if (!any_device_active) {
+//         VTB_LOG(INFO) << "             No traffic processed across any Vhost devices.";
+//     }
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// }
+
+// void ConfigManager::print_final_report() {
+//     const int total_width = 85;
+//     const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+//     int padding = (total_width - (int)title.length()) / 2;
+// 
+//     std::stringstream ss;
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// 
+//     ss.str(""); ss.clear();
+//     ss << std::string(padding, ' ') << title;
+//     VTB_LOG(INFO) << ss.str();
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// 
+//     // Headers now reflect a "Pair" per row
+//     ss.str(""); ss.clear();
+//     ss << std::left  << std::setw(6)  << "VID"
+//        << std::setw(10) << "Q-PAIR"
+//        << std::right << std::setw(16) << "TX Frames"
+//        << std::setw(16) << "RX Frames"
+//        << std::setw(15) << "TX Drp"
+//        << std::setw(15) << "RX Drp";
+//     VTB_LOG(INFO) << ss.str();
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '-');
+// 
+//     bool activity_detected = false;
+// 
+//     for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+//         // Step by 2 to group RX/TX pairs
+//         for (int q = 0; q < MAX_QUEUES; q += 2) {
+// 
+//             // Even QID (usually RX from backend perspective)
+//             auto& s_even = stats_table_[v][q];
+//             // Odd QID (usually TX from backend perspective)
+//             auto& s_odd  = stats_table_[v][q + 1];
+// 
+//             uint64_t rx  = s_even.rx_frames.load(std::memory_order_relaxed);
+//             uint64_t rxd = s_even.rx_dropped.load(std::memory_order_relaxed);
+// 
+//             uint64_t tx  = s_odd.tx_frames.load(std::memory_order_relaxed);
+//             uint64_t txd = s_odd.tx_dropped.load(std::memory_order_relaxed);
+// 
+//             // Print if there is ANY activity in this pair
+//             if (tx > 0 || rx > 0 || txd > 0 || rxd > 0) {
+//                 activity_detected = true;
+//                 ss.str(""); ss.clear();
+// 
+//                 // Represent the pair as "0/1", "2/3", etc.
+//                 std::string pair_label = std::to_string(q) + "/" + std::to_string(q+1);
+// 
+//                 ss << std::left  << std::setw(6)  << v
+//                    << std::setw(10) << pair_label
+//                    << std::right << std::setw(16) << tx
+//                    << std::setw(16) << rx
+//                    << std::setw(15) << txd
+//                    << std::setw(15) << rxd;
+//                 VTB_LOG(INFO) << ss.str();
+//             }
+//         }
+//     }
+// 
+//     if (!activity_detected) {
+//         VTB_LOG(INFO) << "             No traffic processed across any Vhost devices.";
+//     }
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// }
+
+// void ConfigManager::print_final_report() {
+//     const int total_width = 85;
+//     const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+//     int padding = (total_width - (int)title.length()) / 2;
+// 
+//     // Use a stringstream to format each line before passing to VTB_LOG
+//     std::stringstream ss;
+// 
+//     // 1. Header
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+//     
+//     ss.str(""); ss.clear();
+//     ss << std::string(padding, ' ') << title;
+//     VTB_LOG(INFO) << ss.str();
+//     
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// 
+//     // 2. Column Headers
+//     ss.str(""); ss.clear();
+//     ss << std::left  << std::setw(8)  << "VID" 
+//        << std::setw(8)  << "QID" 
+//        << std::right << std::setw(16) << "TX Frames" 
+//        << std::setw(17) << "RX Frames" 
+//        << std::setw(17) << "TX Dropped" 
+//        << std::setw(17) << "RX Dropped";
+//     VTB_LOG(INFO) << ss.str();
+//     
+//     VTB_LOG(INFO) << std::string(total_width, '-');
+// 
+//     bool activity_detected = false;
+// 
+//     // 3. Data Rows
+//     for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+//         for (int q = 0; q < MAX_QUEUES; ++q) {
+//             auto& s = stats_table_[v][q];
+//             uint64_t tx  = s.tx_frames.load(std::memory_order_relaxed);
+//             uint64_t rx  = s.rx_frames.load(std::memory_order_relaxed);
+//             uint64_t txd = s.tx_dropped.load(std::memory_order_relaxed);
+//             uint64_t rxd = s.rx_dropped.load(std::memory_order_relaxed);
+// 
+//             if (tx > 0 || rx > 0 || txd > 0 || rxd > 0) {
+//                 activity_detected = true;
+//                 ss.str(""); ss.clear();
+//                 ss << std::left  << std::setw(8)  << v 
+//                    << std::setw(8)  << q 
+//                    << std::right << std::setw(16) << tx 
+//                    << std::setw(17) << rx 
+//                    << std::setw(17) << txd 
+//                    << std::setw(17) << rxd;
+//                 VTB_LOG(INFO) << ss.str();
+//             }
+//         }
+//     }
+// 
+//     if (!activity_detected) {
+//         ss.str(""); ss.clear();
+//         ss << std::string((total_width - 32) / 2, ' ') << "No traffic processed by any port.";
+//         VTB_LOG(INFO) << ss.str();
+//     }
+// 
+//     VTB_LOG(INFO) << std::string(total_width, '=');
+// }
+
+// void ConfigManager::print_final_report() {
+//     const int total_width = 85;
+//     const std::string title = "VTB CONSOLIDATED PERFORMANCE REPORT";
+//     
+//     // Calculate padding for manual centering
+//     int padding = (total_width - title.length()) / 2;
+// 
+//     // 1. Table Header
+//     std::cout << "\n" << std::string(total_width, '=') << "\n";
+//     std::cout << std::string(padding, ' ') << title << "\n";
+//     std::cout << std::string(total_width, '=') << "\n";
+//     
+//     // Column Definitions
+//     std::cout << std::left  << std::setw(8)  << "VID" 
+//               << std::setw(8)  << "QID" 
+//               << std::right << std::setw(16) << "TX Frames" 
+//               << std::setw(17) << "RX Frames" 
+//               << std::setw(17) << "TX Dropped" 
+//               << std::setw(17) << "RX Dropped" << "\n";
+//     std::cout << std::string(total_width, '-') << "\n";
+// 
+//     bool activity_detected = false;
+// 
+//     // 2. Iterate through the common space
+//     for (int v = 0; v < MAX_VHOST_DEVICES; ++v) {
+//         for (int q = 0; q < MAX_QUEUES; ++q) {
+//             
+//             auto& s = stats_table_[v][q];
+//             uint64_t tx  = s.tx_frames.load(std::memory_order_relaxed);
+//             uint64_t rx  = s.rx_frames.load(std::memory_order_relaxed);
+//             uint64_t txd = s.tx_dropped.load(std::memory_order_relaxed);
+//             uint64_t rxd = s.rx_dropped.load(std::memory_order_relaxed);
+// 
+//             // 3. Only print rows with activity
+//             if (tx > 0 || rx > 0 || txd > 0 || rxd > 0) {
+//                 activity_detected = true;
+//                 std::cout << std::left  << std::setw(8)  << v 
+//                           << std::setw(8)  << q 
+//                           << std::right << std::setw(16) << tx 
+//                           << std::setw(17) << rx 
+//                           << std::setw(17) << txd 
+//                           << std::setw(17) << rxd << "\n";
+//             }
+//         }
+//     }
+// 
+//     if (!activity_detected) {
+//         std::cout << std::string((total_width - 32) / 2, ' ') 
+//                   << "No traffic processed by any port.\n";
+//     }
+// 
+//     std::cout << std::string(total_width, '=') << std::endl;
+// }
+
 }  // namespace vtb

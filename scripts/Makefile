@@ -115,20 +115,3 @@ noh:
 			#--threading-mode AllQ-TwoThread \
 			#--threading-mode AllQ-OneThread \
 			#--threading-mode EachQ-TwoThread \
-
-#   EachQ-TwoThread
-#   EachQ-OneThread
-#   AllQ-TwoThread
-#   AllQ-OneThread
-
-
-		#--help \
-
-		#--no-huge \
-
-		#--log-level=lib.vhost.config:3 \
-		#--log-level=lib.eal:3 \
-
-		#--mode Emulator \
-		#--mode Back2Back \
-		#--mode Loopback \

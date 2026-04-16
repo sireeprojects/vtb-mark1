@@ -74,6 +74,8 @@ void PortHandlerLoopback::worker(VidContext ctx) {
 
    is_running_ = true;
 
+   vtb::QueueStats* device_stats = config.get_stats_table()[vid];
+
    while (is_running_) {
       for (int qid : qids) {
 
@@ -97,13 +99,15 @@ void PortHandlerLoopback::worker(VidContext ctx) {
         //     break;
         // }
 
+         vtb::QueueStats& q_stat = device_stats[qid];
+
         if (qid % 2 != 0) {
            // It's a Transmit Queue (Odd)
-           dequeue_tx_packets(vid, qid, mempools_[qid], rings_[qid]);
+           dequeue_tx_packets(vid, qid, mempools_[qid], rings_[qid], q_stat);
         } else {
            // It's a Receive Queue (Even)
            // It uses the ring from its associated TX partner (qid + 1)
-           enqueue_rx_packets(vid, qid, rings_[qid + 1]);
+           enqueue_rx_packets(vid, qid, rings_[qid + 1], q_stat);
         }
      }
      // Consider a tiny sched_yield() or small usleep if qids is small
@@ -111,7 +115,7 @@ void PortHandlerLoopback::worker(VidContext ctx) {
    }
 }
 
-void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid, struct rte_mempool* mpool, struct rte_ring* ring) {
+void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid, struct rte_mempool* mpool, struct rte_ring* ring, [[maybe_unused]] vtb::QueueStats& stats) {
    struct rte_mbuf* pkts[vtb::PKT_BURST_SZ];
    uint16_t nb_tx = rte_vhost_dequeue_burst(
          vid, 
@@ -136,12 +140,19 @@ void PortHandlerLoopback::dequeue_tx_packets(int vid, int qid, struct rte_mempoo
 	    if (sent < nb_tx)
 	        usleep(1);  // backpressure: ring full, let consumer drain
 	}
-	txq_pkt_cnt_ += sent;
-   VTB_LOG(INFO) << "PortHandlerLoopback: Vhost Dequeued: " 
-      << nb_tx << " Ring Enqueued: " << txq_pkt_cnt_ ;
+	// txq_pkt_cnt_ += sent;
+   VTB_LOG(TRACE) << "PortHandlerLoopback: Dequeue" 
+      << " VID: " << vid
+      << " QID: " << qid
+      << " Vhost Dequeued: " << nb_tx
+      << " Ring Enqueued: " << sent;
+
+   // CHECK why this fetch_add
+   stats.tx_frames.fetch_add(sent, std::memory_order_relaxed);
+   // stats.tx_frames.fetch_add(txq_pkt_cnt_, std::memory_order_relaxed);
 }
  
-void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid, struct rte_ring* ring) {
+void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid, struct rte_ring* ring, [[maybe_unused]] vtb::QueueStats& stats) {
 	struct rte_mbuf* pkts[PKT_BURST_SZ];
 	unsigned int nb_deq = rte_ring_sc_dequeue_burst(
 	    ring,
@@ -165,7 +176,7 @@ void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid, struct rte_ring* 
 	    }
 	}
 
-	rxq_pkt_cnt_ += sent;
+	// rxq_pkt_cnt_ += sent;
 
 	if (sent < nb_deq) {
 		VTB_LOG(ERROR) << "PortHandlerLoopback: Enqueue Failed " 
@@ -191,7 +202,13 @@ void PortHandlerLoopback::enqueue_rx_packets(int vid, int qid, struct rte_ring* 
 	        rte_pktmbuf_free(pkts[i]);
 	} while (remaining > 0);
 
-   VTB_LOG(INFO) << "PortHandlerLoopback: No of pkts Enqueued to Guest: " << rxq_pkt_cnt_;
+   VTB_LOG(TRACE) << "PortHandlerLoopback: Enqueue" 
+      << " VID: " << vid
+      << " QID: " << qid
+      << " Ring Dequeued: " << nb_deq
+      << " Vhost Enqueued: " << sent;
+   stats.rx_frames.fetch_add(sent, std::memory_order_relaxed);
+   // stats.rx_frames.fetch_add(rxq_pkt_cnt_, std::memory_order_relaxed);
 }
 
 void PortHandlerLoopback::start([[maybe_unused]] int pid, int vid) {
@@ -249,12 +266,14 @@ void PortHandlerLoopback::dispatch(const VidContext& context, const std::string&
          break;
       }
 
-      case ThreadMode::AllQOneThread:
+      case ThreadMode::AllQOneThread: {
          launch({vid, qids});
          break;
+      }
 
       default:
-         // This handles the unlikely case of an unhandled enum value
+         // an undefine thread mode
+         // TODO Add a fatal message and exit
          break;
    }
 }

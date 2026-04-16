@@ -37,6 +37,14 @@ public:
    int get_pid_by_vid(int vid);
    int get_vid_by_pid(int pid);
 
+   // Accessor for the stats table
+   QueueStats (&get_stats_table())[MAX_VHOST_DEVICES][MAX_QUEUES] {
+      return stats_table_;
+   }
+
+   void print_final_report();   
+   void clear_statistics();
+
 private:
    ConfigManager();
    ~ConfigManager();
@@ -50,6 +58,8 @@ private:
    std::map<int, int> vpmap_;
 
    mutable std::mutex pvmap_mutex_; // CHECK if this is required
+
+   QueueStats stats_table_[MAX_VHOST_DEVICES][MAX_QUEUES];
 
 public:
    template <typename T>

@@ -13,6 +13,9 @@
 
 namespace vtb {
 
+static constexpr int MAX_VHOST_DEVICES = 256;
+static constexpr int MAX_QUEUES = 16;
+
 static constexpr int MAX_QUEUE_PAIRS = 8;
 static constexpr uint32_t MBUF_POOL_SIZE       = 8191;
 static constexpr uint32_t MBUF_CACHE_SIZE      = 256;
@@ -75,6 +78,13 @@ enum class ThreadMode {
    EachQOneThread,
    AllQTwoThread,
    AllQOneThread
+};
+
+struct QueueStats {
+    std::atomic<uint64_t> tx_frames{0};
+    std::atomic<uint64_t> rx_frames{0};
+    std::atomic<uint64_t> tx_dropped{0};
+    std::atomic<uint64_t> rx_dropped{0};
 };
 
 class PortController;

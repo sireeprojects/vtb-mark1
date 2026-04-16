@@ -28,35 +28,11 @@ qemu-system-x86_64 \
     -chardev socket,id=char1,path=/tmp/vhost-user.sock \
     -netdev type=vhost-user,id=hostnet1,queues=8,chardev=char1,vhostforce=on \
     -device virtio-net-pci,netdev=hostnet1,mq=on,vectors=18,id=net1,mac="00:60:2f:00:00:01",bus=pci.0,addr=0x7 \
-    \
-    -chardev socket,id=char2,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet2,queues=8,chardev=char2,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet2,mq=on,vectors=18,id=net2,mac="00:60:2f:00:00:02",bus=pci.0,addr=0x8 \
-    \
-    -chardev socket,id=char3,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet3,queues=8,chardev=char3,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet3,mq=on,vectors=18,id=net3,mac="00:60:2f:00:00:03",bus=pci.0,addr=0x9 \
-    \
-    -chardev socket,id=char4,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet4,queues=8,chardev=char4,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet4,mq=on,vectors=18,id=net4,mac="00:60:2f:00:00:04",bus=pci.0,addr=0xA \
-    \
-    -chardev socket,id=char5,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet5,queues=8,chardev=char5,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet5,mq=on,vectors=18,id=net5,mac="00:60:2f:00:00:05",bus=pci.0,addr=0xB \
-    \
-    -chardev socket,id=char6,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet6,queues=8,chardev=char6,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet6,mq=on,vectors=18,id=net6,mac="00:60:2f:00:00:06",bus=pci.0,addr=0xC \
-    \
-    -chardev socket,id=char7,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet7,queues=8,chardev=char7,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet7,mq=on,vectors=18,id=net7,mac="00:60:2f:00:00:07",bus=pci.0,addr=0xD \
-    \
-    -chardev socket,id=char8,path=/tmp/vhost-user.sock \
-    -netdev type=vhost-user,id=hostnet8,queues=8,chardev=char8,vhostforce=on \
-    -device virtio-net-pci,netdev=hostnet8,mq=on,vectors=18,id=net8,mac="00:60:2f:00:00:08",bus=pci.0,addr=0xE \
    ;
+
+
+# vector formula
+# vectors = (queues*2) + 2
 
 
 # qemu \
