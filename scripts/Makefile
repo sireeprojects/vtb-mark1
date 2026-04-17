@@ -17,6 +17,8 @@ BIN_DIR  := .
 CXXFLAGS += -g -rdynamic
 LDFLAGS += -rdynamic
 
+LDFLAGS += -lstdc++fs
+
 # --- Target ---
 TARGET   := $(BIN_DIR)/vtb
 
@@ -83,7 +85,6 @@ run:
 			--log-level=lib.mempool:8 \
 			--huge-unlink \
 			-- \
-			--client true \
 			--mode Loopback \
 			--verbosity Trace \
 			--threading-mode EachQ-OneThread \

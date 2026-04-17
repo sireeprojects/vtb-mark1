@@ -9,6 +9,8 @@ CXX      := g++
 CXXFLAGS := -I$(PROJ_ROOT)/src -Wall -Wextra -std=c++17 $(shell pkg-config --cflags libdpdk)
 LDFLAGS  := $(shell pkg-config --libs libdpdk) -pthread
 
+LDFLAGS += -lstdc++fs
+
 # --- Directories ---
 SRC_DIR  := $(PROJ_ROOT)/src
 OBJ_DIR  := obj
