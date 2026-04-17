@@ -66,7 +66,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 # Clean up
 clean:
-	rm -rf $(OBJ_DIR) $(TARGET) *.log
+	rm -rf $(OBJ_DIR) $(TARGET) *.log *.log.*
 
 purge:
 	rm -rf /tmp/vhost-user.sock
@@ -83,8 +83,9 @@ run:
 			--log-level=lib.mempool:8 \
 			--huge-unlink \
 			-- \
+			--client true \
 			--mode Loopback \
-			--verbosity Info \
+			--verbosity Trace \
 			--threading-mode EachQ-OneThread \
 			--abstract-sockname absockname \
 			--port-data-sockname datasockname \
@@ -111,6 +112,7 @@ noh:
 
 .PHONY: all clean run
 
+			#--client true \
 			#--threading-mode EachQ-OneThread \
 			#--threading-mode AllQ-TwoThread \
 			#--threading-mode AllQ-OneThread \

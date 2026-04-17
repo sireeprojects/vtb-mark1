@@ -66,10 +66,22 @@ void VhostController::init(int argc, char* argv[]) {
 void VhostController::start() {
    const char* path = socket_path_.c_str();
 
-   if (rte_vhost_driver_register(path, 0) != 0) {
-      throw std::runtime_error("VhostController: Driver register failed: " +
-                               socket_path_);
+   bool is_client = config.get_arg<bool>("--client");
+
+   if (is_client) {
+      VTB_LOG(DEBUG) << "VhostController: Starting in Client mode...";
+      if (rte_vhost_driver_register(path, RTE_VHOST_USER_CLIENT) != 0) {
+         // throw std::runtime_error("VhostController: Driver register failed as a Client: " + socket_path_);
+         VTB_LOG(FATAL) << "VhostController: Driver register failed as a Client: " + socket_path_ ;
+      }
+   } else {
+      VTB_LOG(DEBUG) << "VhostController: Starting in Server mode...";
+      if (rte_vhost_driver_register(path, 0) != 0) {
+         // throw std::runtime_error("VhostController: Driver register failed as a Server: " + socket_path_);
+         VTB_LOG(FATAL) << "VhostController: Driver register failed as a Server: " + socket_path_ ;
+      }
    }
+
    driver_registered_ = true;
 
    // rte_vhost_driver_disable_features(path, 1ULL << VIRTIO_NET_F_MQ); // CHECK
@@ -146,7 +158,7 @@ void VhostController::on_destroy_device(int vid) {
    VTB_LOG(INFO) << "VhostController: Port with VID: " << vid << " removed";
    notify_port_controller(vtb::VhostNotifyMetadata::PORT_DOWN, config.get_pid_by_vid(vid), vid);
    // config.print_final_report();
-   // config.clear_device(vid);
+   // config.clear_device(vid); // TODO Very important to revert back for multi reset
    VhostController::port_cntr_ -= 1;
 }
 

@@ -2,6 +2,22 @@
 
 namespace vtb {
 
+void PortController::shutdown() {
+   // call shutdown for ann porthandlers
+   for (auto& [port_id, inner_map] : port_handler_) {
+        VTB_LOG(DEBUG) << "PortController: Shutting down handlers for Port ID: " << port_id;
+
+        // Iterate through the inner map (vid -> unique_ptr)
+        for (auto& [vid, handler_ptr] : inner_map) {
+            // Safety check: ensure the unique_ptr is not null before calling shutdown
+            if (handler_ptr) {
+                VTB_LOG(DEBUG) << "Calling shutdown for VID: " << vid;
+                handler_ptr->shutdown();
+            }
+        }
+    }
+}
+
 void PortController::start() {
    create_server();
    monitor_and_dispatch_handler();

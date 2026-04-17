@@ -20,6 +20,8 @@ bool keep_running{false};
 static int keep_alive_thread(void*);
 static void signal_handler(int);
 static void setup_signal_handler();
+static void signal_handler_crash(int sig);
+bool ctrl_c_detected {false};
 
 int main(int argc, char** argv) {
    vtb::disable_echoctl();
@@ -55,7 +57,19 @@ int main(int argc, char** argv) {
    rte_eal_remote_launch(keep_alive_thread, NULL, next_core);
 
    rte_eal_mp_wait_lcore();
+
    config.print_final_report();
+
+   bool is_client = config.get_arg<bool>("--client");
+   if (is_client) {
+      VTB_LOG(INFO) << "VtbMain: Shutting now Controller";
+      port_controller->shutdown();
+   }
+
+   if (ctrl_c_detected && !is_client) {
+      VTB_LOG(INFO) << "VtbMain: Shutting now Controller";
+      port_controller->shutdown();
+   }
 
    vtb::restore_echoctl();
    VTB_LOG(INFO) << "Test Done. Starting cleanup...";
@@ -73,7 +87,7 @@ static void setup_signal_handler() {
    std::set_terminate(vtb::graceful_exit);
    std::signal(SIGINT, signal_handler);  // detect ctrl+c
    std::signal(SIGTERM, signal_handler); // terminate from os
-   std::signal(SIGSEGV, signal_handler); // Segfault
+   std::signal(SIGSEGV, signal_handler_crash); // Segfault
    std::signal(SIGABRT, signal_handler); // Abort (rte_panic)
    std::signal(SIGFPE,  signal_handler); // Math error
 }                                         
@@ -81,6 +95,7 @@ static void setup_signal_handler() {
 static void signal_handler(int) {
    VTB_LOG(FATAL) << "<User Pressed Ctrl+C>";
    keep_running = true;
+   ctrl_c_detected = true;
 }
 
 [[maybe_unused]] static void signal_handler_crash(int sig) {

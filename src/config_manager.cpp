@@ -16,6 +16,11 @@ ConfigManager::ConfigManager() {
                         "Loopback | Back2Back | Emulator", 
                         false, 
                         "Loopback");
+   parser_.add_argument("--client", 
+                        "-c", 
+                        "Operate as Vhost Client", 
+                        false, 
+                        "false");
    parser_.add_argument("--threading-mode",
                         "-thmode",
                         "EachQ-TwoThread | EachQ-OneThread | AllQ-TwoThread | AllQ-OneThread",

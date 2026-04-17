@@ -21,6 +21,7 @@ public:
    PortController& operator=(const PortController&) = delete;
 
    void start();
+   void shutdown();
 
 protected:
    virtual void create_server() = 0;

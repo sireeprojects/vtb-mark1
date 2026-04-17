@@ -9,11 +9,16 @@ static vtb::ConfigManager& config = vtb::ConfigManager::get_instance();
 
 PortHandlerLoopback::~PortHandlerLoopback() {
    shutdown();
+   // if (!worker_threads_.empty()) {
+   //    shutdown();
+   // }
 }
 
 void PortHandlerLoopback::shutdown() {
    // stop threading loop
    is_running_ = false;
+
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: Stopping threads...";
 
    // wait for threads to finish
    for (std::thread& t : worker_threads_) {
@@ -23,6 +28,9 @@ void PortHandlerLoopback::shutdown() {
    }
    worker_threads_.clear();
 
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: All threads stopped: " 
+      << worker_threads_.size();
+
    // free mempools and rings used by threads
    for (auto const& [qid, ptr] : mempools_) {
       VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: mempool free: " << qid;
@@ -30,6 +38,8 @@ void PortHandlerLoopback::shutdown() {
          rte_mempool_free(ptr);
    }
    mempools_.clear();
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: All mempools freed: " 
+      << mempools_.size();
 
    for (auto const& [qid, ptr] : rings_) {
       VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: ring free: " << qid;
@@ -37,6 +47,8 @@ void PortHandlerLoopback::shutdown() {
          rte_ring_free(ptr);
    }
    rings_.clear();
+   VTB_LOG(DEBUG) << "PortHandlerLoopback: Shutdown: All rings freed: " 
+      << rings_.size();
 }
 
 void PortHandlerLoopback::create_resources(const int pid, const std::vector<int>& qids) {
